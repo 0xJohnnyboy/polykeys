@@ -30,6 +30,17 @@ int selectInputSourceByID(const char* sourceID) {
     }
 
     TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(sources, 0);
+
+    // Check if source is enabled, if not enable it first (like Windows does)
+    CFBooleanRef isEnabled = (CFBooleanRef)TISGetInputSourceProperty(source, kTISPropertyInputSourceIsEnabled);
+    if (!isEnabled || !CFBooleanGetValue(isEnabled)) {
+        OSStatus enableStatus = TISEnableInputSource(source);
+        if (enableStatus != noErr) {
+            CFRelease(sources);
+            return -4; // Failed to enable
+        }
+    }
+
     OSStatus status = TISSelectInputSource(source);
     CFRelease(sources);
 
@@ -89,6 +100,16 @@ int selectInputSourceByName(const char* name) {
     if (!foundSource) {
         CFRelease(sources);
         return -2;
+    }
+
+    // Check if source is enabled, if not enable it first (like Windows does)
+    CFBooleanRef isEnabled = (CFBooleanRef)TISGetInputSourceProperty(foundSource, kTISPropertyInputSourceIsEnabled);
+    if (!isEnabled || !CFBooleanGetValue(isEnabled)) {
+        OSStatus enableStatus = TISEnableInputSource(foundSource);
+        if (enableStatus != noErr) {
+            CFRelease(sources);
+            return -4; // Failed to enable
+        }
     }
 
     OSStatus status = TISSelectInputSource(foundSource);
@@ -176,6 +197,8 @@ func (s *DarwinLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.
 		return fmt.Errorf("input source not found by ID (%s) or name (%s)", sourceID, layout.Name)
 	case -3:
 		return fmt.Errorf("failed to select input source")
+	case -4:
+		return fmt.Errorf("failed to enable input source")
 	default:
 		return fmt.Errorf("unknown error selecting input source")
 	}
