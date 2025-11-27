@@ -8,6 +8,24 @@ You have multiple keyboards (Corne, Lily58, laptop keyboard...) and each one use
 
 ## Installation
 
+### From source
+
+```bash
+# Clone the repository
+git clone https://github.com/0xJohnnyboy/polykeys.git
+cd polykeys
+
+# Build for your platform
+make build
+
+# Or build for all platforms
+make build-all
+
+# Install to system
+make install
+```
+
+### From Go
 ```bash
 go install github.com/0xJohnnyboy/polykeys/cmd/polykeysd@latest
 go install github.com/0xJohnnyboy/polykeys/cmd/polykeys@latest
@@ -79,6 +97,27 @@ Polykeys **does not work on WSL** due to limitations in device access:
 On Linux, you may need appropriate permissions to access `/dev/input`. If the daemon fails to start, try:
 - Adding your user to the `input` group: `sudo usermod -a -G input $USER`
 - Running the daemon with `sudo` (not recommended for production)
+
+## Building
+
+```bash
+# Build for current platform
+make build
+
+# Build for all platforms
+make build-all
+
+# Build for specific platform
+make build-linux
+make build-windows
+make build-darwin
+
+# Run tests
+make test
+
+# Show all available targets
+make help
+```
 
 ## License
 
