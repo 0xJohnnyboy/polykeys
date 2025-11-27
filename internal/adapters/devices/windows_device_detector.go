@@ -127,15 +127,15 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 			for id, device := range currentDevices {
 				if _, existed := previousDevices[id]; !existed {
 					if d.onConnectedCallback != nil {
-						// Protect against panics in callback
-						func() {
+						// Run callback in goroutine to avoid blocking polling
+						go func(dev *domain.Device) {
 							defer func() {
 								if r := recover(); r != nil {
-									fmt.Printf("[Detector] Panic in connected callback: %v\n", r)
+									log.Printf("[Detector] Panic in connected callback: %v", r)
 								}
 							}()
-							d.onConnectedCallback(device)
-						}()
+							d.onConnectedCallback(dev)
+						}(device)
 					}
 				}
 			}
@@ -145,15 +145,15 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 				if _, exists := currentDevices[id]; !exists {
 					// Device was disconnected - use the stored device info
 					if d.onDisconnectedCallback != nil {
-						// Protect against panics in callback
-						func() {
+						// Run callback in goroutine to avoid blocking polling
+						go func(dev *domain.Device) {
 							defer func() {
 								if r := recover(); r != nil {
-									fmt.Printf("[Detector] Panic in disconnected callback: %v\n", r)
+									log.Printf("[Detector] Panic in disconnected callback: %v", r)
 								}
 							}()
-							d.onDisconnectedCallback(device)
-						}()
+							d.onDisconnectedCallback(dev)
+						}(dev)
 					}
 				}
 			}

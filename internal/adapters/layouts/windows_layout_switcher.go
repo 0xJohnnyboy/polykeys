@@ -147,6 +147,8 @@ func (s *WindowsLayoutSwitcher) broadcastLayoutChange(hkl windows.Handle) error 
 	)
 
 	// Use PostMessage for async broadcast (recommended for broadcasts)
+	// IMPORTANT: Never use SendMessage with HWND_BROADCAST as it's blocking
+	// and can freeze the application if any window doesn't respond
 	procPostMessage.Call(
 		uintptr(HWND_BROADCAST),
 		uintptr(WM_INPUTLANGCHANGEREQUEST),
@@ -154,8 +156,8 @@ func (s *WindowsLayoutSwitcher) broadcastLayoutChange(hkl windows.Handle) error 
 		uintptr(hkl),
 	)
 
-	// Also send WM_INPUTLANGCHANGE to notify applications
-	procSendMessage.Call(
+	// Also post WM_INPUTLANGCHANGE (use PostMessage, NOT SendMessage)
+	procPostMessage.Call(
 		uintptr(HWND_BROADCAST),
 		uintptr(WM_INPUTLANGCHANGE),
 		0,
