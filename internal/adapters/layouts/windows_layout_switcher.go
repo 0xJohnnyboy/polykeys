@@ -111,12 +111,19 @@ func (s *WindowsLayoutSwitcher) activateKeyboardLayout(hkl windows.Handle) error
 	user32 := windows.NewLazySystemDLL("user32.dll")
 	procActivateKeyboardLayout := user32.NewProc("ActivateKeyboardLayout")
 
-	// HKL_PREV = 0, HKL_NEXT = 1
-	const KLF_SETFORPROCESS = 0x00000100
+	// Flags for ActivateKeyboardLayout
+	const (
+		KLF_ACTIVATE      = 0x00000001 // Activate for current thread
+		KLF_SETFORPROCESS = 0x00000100 // Set for entire process
+		KLF_REORDER       = 0x00000008 // Reorder layout list
+	)
+
+	// Activate with multiple flags to ensure it takes effect
+	flags := KLF_ACTIVATE | KLF_SETFORPROCESS | KLF_REORDER
 
 	ret, _, err := procActivateKeyboardLayout.Call(
 		uintptr(hkl),
-		uintptr(KLF_SETFORPROCESS),
+		uintptr(flags),
 	)
 
 	if ret == 0 {
@@ -129,20 +136,32 @@ func (s *WindowsLayoutSwitcher) activateKeyboardLayout(hkl windows.Handle) error
 // broadcastLayoutChange broadcasts the layout change to all windows
 func (s *WindowsLayoutSwitcher) broadcastLayoutChange(hkl windows.Handle) error {
 	user32 := windows.NewLazySystemDLL("user32.dll")
+	procPostMessage := user32.NewProc("PostMessageW")
 	procSendMessage := user32.NewProc("SendMessageW")
 
-	// WM_INPUTLANGCHANGEREQUEST = 0x0050
-	const WM_INPUTLANGCHANGEREQUEST = 0x0050
-	const HWND_BROADCAST = 0xFFFF
+	// Windows messages
+	const (
+		WM_INPUTLANGCHANGEREQUEST = 0x0050
+		WM_INPUTLANGCHANGE        = 0x0051
+		HWND_BROADCAST            = 0xFFFF
+	)
 
-	_, _, _ = procSendMessage.Call(
+	// Use PostMessage for async broadcast (recommended for broadcasts)
+	procPostMessage.Call(
 		uintptr(HWND_BROADCAST),
 		uintptr(WM_INPUTLANGCHANGEREQUEST),
 		0,
 		uintptr(hkl),
 	)
 
-	// SendMessage doesn't fail for broadcasts
+	// Also send WM_INPUTLANGCHANGE to notify applications
+	procSendMessage.Call(
+		uintptr(HWND_BROADCAST),
+		uintptr(WM_INPUTLANGCHANGE),
+		0,
+		uintptr(hkl),
+	)
+
 	return nil
 }
 

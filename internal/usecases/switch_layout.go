@@ -33,10 +33,15 @@ func (uc *SwitchLayoutUseCase) SwitchForDevice(ctx context.Context, device *doma
 	mapping, err := uc.mappingRepo.FindByDeviceID(ctx, device.ID)
 	if err != nil {
 		// If no mapping found for this device, try system default
+		fmt.Printf("[Switch] ⚠ No mapping found for device %s (%s), using system default\n",
+			device.DisplayName(), device.ID)
 		mapping, err = uc.mappingRepo.GetSystemDefault(ctx)
 		if err != nil {
 			return fmt.Errorf("no mapping found for device %s and no system default: %w", device.DisplayName(), err)
 		}
+	} else {
+		fmt.Printf("[Switch] ✓ Found mapping for device %s (%s) → %s\n",
+			device.DisplayName(), device.ID, mapping.LayoutName)
 	}
 
 	// Get the layout to switch to
@@ -45,16 +50,23 @@ func (uc *SwitchLayoutUseCase) SwitchForDevice(ctx context.Context, device *doma
 		return fmt.Errorf("layout %s not found: %w", mapping.LayoutName, err)
 	}
 
+	fmt.Printf("[Switch] → Switching to layout: %s (OS: %s, ID: %s)\n",
+		layout.Name, layout.OS, layout.SystemIdentifier)
+
 	// Switch to the layout
 	if err := uc.layoutSwitcher.SwitchLayout(ctx, layout); err != nil {
 		return fmt.Errorf("failed to switch layout: %w", err)
 	}
+
+	fmt.Printf("[Switch] ✓ Successfully switched to %s\n", layout.Name)
 
 	return nil
 }
 
 // SwitchToDefault switches to the system default layout
 func (uc *SwitchLayoutUseCase) SwitchToDefault(ctx context.Context) error {
+	fmt.Printf("[Switch] → Switching to system default\n")
+
 	// Get system default mapping
 	mapping, err := uc.mappingRepo.GetSystemDefault(ctx)
 	if err != nil {
@@ -67,10 +79,15 @@ func (uc *SwitchLayoutUseCase) SwitchToDefault(ctx context.Context) error {
 		return fmt.Errorf("default layout %s not found: %w", mapping.LayoutName, err)
 	}
 
+	fmt.Printf("[Switch] → Switching to default layout: %s (OS: %s, ID: %s)\n",
+		layout.Name, layout.OS, layout.SystemIdentifier)
+
 	// Switch to the layout
 	if err := uc.layoutSwitcher.SwitchLayout(ctx, layout); err != nil {
 		return fmt.Errorf("failed to switch to default layout: %w", err)
 	}
+
+	fmt.Printf("[Switch] ✓ Successfully switched to %s\n", layout.Name)
 
 	return nil
 }
