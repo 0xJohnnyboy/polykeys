@@ -101,14 +101,23 @@ polykeys list
 ## Supported platforms
 
 - ✅ **Windows** - Fully functional (alpha)
+- ✅ **macOS** - Implemented (requires testing)
 - 🚧 **Linux** - In progress
-- 🚧 **macOS** - Planned
 
-### Windows implementation details
+### Platform implementation details
+
+**Windows:**
 - Device detection via WMI queries
 - Layout switching using Windows Keyboard Layout API
 - Polling-based detection (every 2 seconds)
 - Automatic switch to default layout on device disconnection
+
+**macOS:**
+- Device detection via `system_profiler` USB enumeration
+- Layout switching using Carbon Text Input Sources API (CGO)
+- Polling-based detection (every 2 seconds)
+- Requires native compilation on macOS with CGO enabled
+- Supports standard macOS keyboard layouts and input methods
 
 ## Important notes
 
