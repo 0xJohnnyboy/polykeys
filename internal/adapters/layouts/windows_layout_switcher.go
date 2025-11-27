@@ -4,7 +4,6 @@ package layouts
 
 import (
 	"context"
-	"fmt"
 	"unsafe"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
@@ -59,7 +58,7 @@ func (s *WindowsLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain
 	if layout.OS != domain.OSWindows {
 		return errors.WithDetails(
 			errors.New(errors.ErrCodeLayoutInvalidOS, "layout is not for Windows"),
-			map[string]interface{}{
+			map[string]any{
 				"layout": layout.Name,
 				"os":     layout.OS,
 			},
@@ -73,7 +72,7 @@ func (s *WindowsLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain
 	hkl, err := s.loadKeyboardLayout(klid)
 	if err != nil {
 		if pkErr, ok := err.(*errors.PolykeysError); ok {
-			return errors.WithDetails(pkErr, map[string]interface{}{
+			return errors.WithDetails(pkErr, map[string]any{
 				"layout": layout.Name,
 				"klid":   klid,
 			})
@@ -85,7 +84,7 @@ func (s *WindowsLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain
 	if err := s.activateKeyboardLayout(hkl); err != nil {
 		return errors.WithDetails(
 			errors.Wrap(errors.ErrCodeLayoutSelectFailed, "failed to activate keyboard layout", err),
-			map[string]interface{}{"layout": layout.Name},
+			map[string]any{"layout": layout.Name},
 		)
 	}
 
