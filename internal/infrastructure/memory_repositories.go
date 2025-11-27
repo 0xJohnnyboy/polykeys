@@ -188,7 +188,7 @@ func getDefaultLayoutsForOS(os domain.OperatingSystem) []*domain.KeyboardLayout 
 			domain.NewKeyboardLayout(domain.LayoutUSQwerty, os, "com.apple.keylayout.US"),
 			domain.NewKeyboardLayout(domain.LayoutUSInternational, os, "com.apple.keylayout.USInternational-PC"),
 			domain.NewKeyboardLayout(domain.LayoutUSInternationalDeadKeys, os, "com.apple.keylayout.USInternational-PC"),
-			domain.NewKeyboardLayout(domain.LayoutFrenchAzerty, os, "com.apple.keylayout.French"),
+			domain.NewKeyboardLayout(domain.LayoutFrenchAzerty, os, "com.apple.keylayout.ABC-AZERTY"),
 			domain.NewKeyboardLayout(domain.LayoutUKQwerty, os, "com.apple.keylayout.British"),
 			domain.NewKeyboardLayout(domain.LayoutColemak, os, "com.apple.keylayout.Colemak"),
 			domain.NewKeyboardLayout(domain.LayoutDvorak, os, "com.apple.keylayout.Dvorak"),
