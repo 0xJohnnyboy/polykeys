@@ -150,8 +150,22 @@ import (
 	"unsafe"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
+	"github.com/0xJohnnyboy/polykeys/internal/errors"
 	"github.com/0xJohnnyboy/polykeys/internal/logger"
 )
+
+// darwinErrorInfo maps C result codes to error information
+type darwinErrorInfo struct {
+	code    errors.ErrorCode
+	message string
+}
+
+var darwinErrorMap = map[int]darwinErrorInfo{
+	-1: {errors.ErrCodeLayoutStringFailed, "failed to create C string"},
+	-2: {errors.ErrCodeLayoutNotFound, "input source not found"},
+	-3: {errors.ErrCodeLayoutSelectFailed, "failed to select input source"},
+	-4: {errors.ErrCodeLayoutEnableFailed, "failed to enable input source"},
+}
 
 // DarwinLayoutSwitcher switches keyboard layouts on macOS
 type DarwinLayoutSwitcher struct{}
@@ -161,47 +175,77 @@ func NewDarwinLayoutSwitcher() *DarwinLayoutSwitcher {
 	return &DarwinLayoutSwitcher{}
 }
 
+// selectInputSourceByID selects an input source by its ID
+func (s *DarwinLayoutSwitcher) selectInputSourceByID(sourceID string) error {
+	cSourceID := C.CString(sourceID)
+	defer C.free(unsafe.Pointer(cSourceID))
+
+	result := C.selectInputSourceByID(cSourceID)
+
+	if result == 0 {
+		return nil
+	}
+
+	if errInfo, exists := darwinErrorMap[int(result)]; exists {
+		return errors.New(errInfo.code, errInfo.message)
+	}
+
+	return errors.New(errors.ErrCodeUnknown, "unknown error selecting input source by ID")
+}
+
+// selectInputSourceByName selects an input source by its name
+func (s *DarwinLayoutSwitcher) selectInputSourceByName(name string) error {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	result := C.selectInputSourceByName(cName)
+
+	if result == 0 {
+		return nil
+	}
+
+	if errInfo, exists := darwinErrorMap[int(result)]; exists {
+		return errors.New(errInfo.code, errInfo.message)
+	}
+
+	return errors.New(errors.ErrCodeUnknown, "unknown error selecting input source by name")
+}
+
 // SwitchLayout changes the system keyboard layout
 func (s *DarwinLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.KeyboardLayout) error {
 	if layout.OS != domain.OSMacOS {
-		return fmt.Errorf("layout %s is not for macOS", layout.Name)
+		return errors.WithDetails(
+			errors.New(errors.ErrCodeLayoutInvalidOS, "layout is not for macOS"),
+			map[string]interface{}{
+				"layout": layout.Name,
+				"os":     layout.OS,
+			},
+		)
 	}
 
 	// Get the input source ID
 	sourceID := s.getSourceID(layout)
 
 	// Try to select by ID first
-	cSourceID := C.CString(sourceID)
-	result := C.selectInputSourceByID(cSourceID)
-	C.free(unsafe.Pointer(cSourceID))
-
-	if result == 0 {
+	err := s.selectInputSourceByID(sourceID)
+	if err == nil {
 		return nil
 	}
 
 	// If selection by ID failed, try by localized name as fallback
-	// This handles cases where the layout name differs (e.g., "ABC-AZERTY" vs "French")
 	logger.Debug("[Switcher] Layout ID %s not found, trying by name: %s\n", sourceID, layout.Name)
 
-	cName := C.CString(layout.Name)
-	result = C.selectInputSourceByName(cName)
-	C.free(unsafe.Pointer(cName))
-
-	switch result {
-	case 0:
+	err = s.selectInputSourceByName(layout.Name)
+	if err == nil {
 		logger.Debug("[Switcher] Successfully switched to %s by name\n", layout.Name)
 		return nil
-	case -1:
-		return fmt.Errorf("failed to create name string")
-	case -2:
-		return fmt.Errorf("input source not found by ID (%s) or name (%s)", sourceID, layout.Name)
-	case -3:
-		return fmt.Errorf("failed to select input source")
-	case -4:
-		return fmt.Errorf("failed to enable input source")
-	default:
-		return fmt.Errorf("unknown error selecting input source")
 	}
+
+	// Add details to the error
+	return errors.WithDetails(err.(*errors.PolykeysError), map[string]interface{}{
+		"layout":   layout.Name,
+		"sourceID": sourceID,
+	})
 }
 
 // getSourceID returns the macOS input source ID for a layout

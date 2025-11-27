@@ -2,11 +2,11 @@ package layouts
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"strings"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
+	"github.com/0xJohnnyboy/polykeys/internal/errors"
 )
 
 // LinuxLayoutSwitcher switches keyboard layouts on Linux using setxkbmap
@@ -53,7 +53,13 @@ func getDefaultLayoutMap() map[string]string {
 // SwitchLayout changes the system keyboard layout
 func (s *LinuxLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.KeyboardLayout) error {
 	if layout.OS != domain.OSLinux {
-		return fmt.Errorf("layout %s is not for Linux", layout.Name)
+		return errors.WithDetails(
+			errors.New(errors.ErrCodeLayoutInvalidOS, "layout is not for Linux"),
+			map[string]interface{}{
+				"layout": layout.Name,
+				"os":     layout.OS,
+			},
+		)
 	}
 
 	// Get the setxkbmap identifier
@@ -62,7 +68,13 @@ func (s *LinuxLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.K
 	// Split identifier into command parts (e.g., "us -variant intl")
 	parts := strings.Fields(identifier)
 	if len(parts) == 0 {
-		return fmt.Errorf("invalid layout identifier: %s", identifier)
+		return errors.WithDetails(
+			errors.New(errors.ErrCodeLayoutInvalidIdentifier, "invalid layout identifier"),
+			map[string]interface{}{
+				"layout":     layout.Name,
+				"identifier": identifier,
+			},
+		)
 	}
 
 	// Build setxkbmap command
@@ -72,7 +84,13 @@ func (s *LinuxLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.K
 	// Execute command
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to switch layout: %w (output: %s)", err, string(output))
+		return errors.WithDetails(
+			errors.Wrap(errors.ErrCodeLayoutSelectFailed, "failed to switch layout", err),
+			map[string]interface{}{
+				"layout": layout.Name,
+				"output": string(output),
+			},
+		)
 	}
 
 	return nil

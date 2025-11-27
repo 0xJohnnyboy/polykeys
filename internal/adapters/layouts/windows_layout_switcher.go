@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
+	"github.com/0xJohnnyboy/polykeys/internal/errors"
 	"golang.org/x/sys/windows"
 )
 
@@ -56,7 +57,13 @@ func getDefaultWindowsLayoutMap() map[string]string {
 // SwitchLayout changes the system keyboard layout
 func (s *WindowsLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.KeyboardLayout) error {
 	if layout.OS != domain.OSWindows {
-		return fmt.Errorf("layout %s is not for Windows", layout.Name)
+		return errors.WithDetails(
+			errors.New(errors.ErrCodeLayoutInvalidOS, "layout is not for Windows"),
+			map[string]interface{}{
+				"layout": layout.Name,
+				"os":     layout.OS,
+			},
+		)
 	}
 
 	// Get the KLID
@@ -65,17 +72,26 @@ func (s *WindowsLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain
 	// Load the keyboard layout
 	hkl, err := s.loadKeyboardLayout(klid)
 	if err != nil {
-		return fmt.Errorf("failed to load keyboard layout %s: %w", klid, err)
+		if pkErr, ok := err.(*errors.PolykeysError); ok {
+			return errors.WithDetails(pkErr, map[string]interface{}{
+				"layout": layout.Name,
+				"klid":   klid,
+			})
+		}
+		return errors.Wrap(errors.ErrCodeLayoutNotFound, "failed to load keyboard layout", err)
 	}
 
 	// Activate the layout for the current thread
 	if err := s.activateKeyboardLayout(hkl); err != nil {
-		return fmt.Errorf("failed to activate keyboard layout: %w", err)
+		return errors.WithDetails(
+			errors.Wrap(errors.ErrCodeLayoutSelectFailed, "failed to activate keyboard layout", err),
+			map[string]interface{}{"layout": layout.Name},
+		)
 	}
 
 	// Broadcast to all windows to switch layout
 	if err := s.broadcastLayoutChange(hkl); err != nil {
-		return fmt.Errorf("failed to broadcast layout change: %w", err)
+		return errors.Wrap(errors.ErrCodeLayoutSelectFailed, "failed to broadcast layout change", err)
 	}
 
 	return nil
@@ -88,7 +104,7 @@ func (s *WindowsLayoutSwitcher) loadKeyboardLayout(klid string) (windows.Handle,
 
 	klidUTF16, err := windows.UTF16PtrFromString(klid)
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert KLID to UTF16: %w", err)
+		return 0, errors.Wrap(errors.ErrCodeLayoutStringFailed, "failed to convert KLID to UTF16", err)
 	}
 
 	// KLF_ACTIVATE = 0x00000001
@@ -100,7 +116,7 @@ func (s *WindowsLayoutSwitcher) loadKeyboardLayout(klid string) (windows.Handle,
 	)
 
 	if ret == 0 {
-		return 0, fmt.Errorf("LoadKeyboardLayout failed: %w", err)
+		return 0, errors.Wrap(errors.ErrCodeLayoutNotFound, "LoadKeyboardLayout failed", err)
 	}
 
 	return windows.Handle(ret), nil
@@ -127,7 +143,7 @@ func (s *WindowsLayoutSwitcher) activateKeyboardLayout(hkl windows.Handle) error
 	)
 
 	if ret == 0 {
-		return fmt.Errorf("ActivateKeyboardLayout failed: %w", err)
+		return errors.Wrap(errors.ErrCodeLayoutSelectFailed, "ActivateKeyboardLayout failed", err)
 	}
 
 	return nil
