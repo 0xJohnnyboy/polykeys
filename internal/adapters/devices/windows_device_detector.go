@@ -141,9 +141,10 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 			}
 
 			// Check for removed devices (disconnected)
-			for id, device := range previousDevices {
+			for id := range previousDevices {
 				if _, exists := currentDevices[id]; !exists {
 					// Device was disconnected - use the stored device info
+					device := previousDevices[id]
 					if d.onDisconnectedCallback != nil {
 						// Run callback in goroutine to avoid blocking polling
 						go func(dev *domain.Device) {
@@ -153,7 +154,7 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 								}
 							}()
 							d.onDisconnectedCallback(dev)
-						}(dev)
+						}(device)
 					}
 				}
 			}

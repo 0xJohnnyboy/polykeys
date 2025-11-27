@@ -137,7 +137,6 @@ func (s *WindowsLayoutSwitcher) activateKeyboardLayout(hkl windows.Handle) error
 func (s *WindowsLayoutSwitcher) broadcastLayoutChange(hkl windows.Handle) error {
 	user32 := windows.NewLazySystemDLL("user32.dll")
 	procPostMessage := user32.NewProc("PostMessageW")
-	procSendMessage := user32.NewProc("SendMessageW")
 
 	// Windows messages
 	const (
