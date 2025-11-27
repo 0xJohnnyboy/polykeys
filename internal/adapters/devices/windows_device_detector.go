@@ -5,6 +5,7 @@ package devices
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"sync"
@@ -95,15 +96,22 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 	}
 	d.mu.RUnlock()
 
+	pollCount := 0
 	for {
 		select {
 		case <-ticker.C:
+			pollCount++
+			// Log every 30 polls (every minute) to show we're still alive
+			if pollCount%30 == 0 {
+				log.Printf("[Detector] Polling active (count: %d, tracking %d devices)", pollCount, len(previousDevices))
+			}
 			if !d.polling {
 				return
 			}
 
 			// Scan for current devices
 			if err := d.scanDevices(); err != nil {
+				fmt.Printf("[Detector] Error scanning devices: %v\n", err)
 				continue
 			}
 
@@ -119,7 +127,15 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 			for id, device := range currentDevices {
 				if _, existed := previousDevices[id]; !existed {
 					if d.onConnectedCallback != nil {
-						d.onConnectedCallback(device)
+						// Protect against panics in callback
+						func() {
+							defer func() {
+								if r := recover(); r != nil {
+									fmt.Printf("[Detector] Panic in connected callback: %v\n", r)
+								}
+							}()
+							d.onConnectedCallback(device)
+						}()
 					}
 				}
 			}
@@ -129,7 +145,15 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 				if _, exists := currentDevices[id]; !exists {
 					// Device was disconnected - use the stored device info
 					if d.onDisconnectedCallback != nil {
-						d.onDisconnectedCallback(device)
+						// Protect against panics in callback
+						func() {
+							defer func() {
+								if r := recover(); r != nil {
+									fmt.Printf("[Detector] Panic in disconnected callback: %v\n", r)
+								}
+							}()
+							d.onDisconnectedCallback(device)
+						}()
 					}
 				}
 			}
