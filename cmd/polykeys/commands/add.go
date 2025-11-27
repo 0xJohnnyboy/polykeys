@@ -1,8 +1,15 @@
 package commands
 
 import (
+	"bufio"
+	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"strings"
 
+	"github.com/0xJohnnyboy/polykeys/internal/domain"
+	"github.com/0xJohnnyboy/polykeys/internal/infrastructure"
 	"github.com/spf13/cobra"
 )
 
@@ -41,15 +48,162 @@ func runAdd(cmd *cobra.Command, args []string) error {
 }
 
 func runAddDetect() error {
-	fmt.Println("Detection mode - please connect a keyboard...")
-	fmt.Println("(Not yet implemented)")
-	// TODO: Implement device detection
+	// Initialize app
+	app, err := infrastructure.NewApp()
+	if err != nil {
+		return fmt.Errorf("failed to initialize: %w", err)
+	}
+
+	ctx := context.Background()
+
+	// Load current config
+	_ = app.ManageMappingsUC.LoadFromConfig(ctx)
+
+	fmt.Println("🔍 Detection mode")
+	fmt.Println("Please connect a keyboard now...")
+	fmt.Println()
+
+	// Get currently connected devices
+	currentDevices, err := app.MonitorDevicesUC.GetConnectedDevices(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get connected devices: %w", err)
+	}
+
+	// Start monitoring
+	if err := app.DeviceDetector.StartMonitoring(ctx); err != nil {
+		return fmt.Errorf("failed to start monitoring: %w", err)
+	}
+	defer app.DeviceDetector.StopMonitoring()
+
+	// Wait for a new device
+	deviceChan := make(chan *domain.Device, 1)
+	app.DeviceDetector.OnDeviceConnected(func(device *domain.Device) {
+		// Check if this is a new device
+		isNew := true
+		for _, existing := range currentDevices {
+			if existing.ID == device.ID {
+				isNew = false
+				break
+			}
+		}
+
+		if isNew {
+			select {
+			case deviceChan <- device:
+			default:
+			}
+		}
+	})
+
+	// Wait for device
+	device := <-deviceChan
+
+	fmt.Printf("✓ Detected: %s (%s)\n", device.Name, device.ID)
+	fmt.Println()
+
+	// Ask for optional alias
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter an alias (optional, press Enter to skip): ")
+	alias, _ := reader.ReadString('\n')
+	alias = strings.TrimSpace(alias)
+
+	if alias != "" {
+		device.SetAlias(alias)
+	}
+
+	// Get available layouts
+	layouts, err := app.LayoutSwitcher.GetAvailableLayouts(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get layouts: %w", err)
+	}
+
+	// Display available layouts
+	fmt.Println()
+	fmt.Println("Available layouts:")
+	for i, layout := range layouts {
+		fmt.Printf("  %d. %s\n", i+1, layout.Name)
+	}
+	fmt.Println()
+
+	// Ask user to choose
+	fmt.Print("Choose a layout (number): ")
+	var choice int
+	_, err = fmt.Scanf("%d", &choice)
+	if err != nil || choice < 1 || choice > len(layouts) {
+		return fmt.Errorf("invalid choice")
+	}
+
+	selectedLayout := layouts[choice-1]
+
+	// Get current OS
+	var os domain.OperatingSystem
+	switch runtime.GOOS {
+	case "linux":
+		os = domain.OSLinux
+	case "darwin":
+		os = domain.OSMacOS
+	case "windows":
+		os = domain.OSWindows
+	default:
+		os = domain.OSLinux
+	}
+
+	// Add mapping
+	if err := app.ManageMappingsUC.AddMapping(ctx, device, selectedLayout.Name, os); err != nil {
+		return fmt.Errorf("failed to add mapping: %w", err)
+	}
+
+	// Save to config
+	if err := app.ManageMappingsUC.SaveToConfig(ctx); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	fmt.Println()
+	fmt.Printf("✓ Mapping created: %s → %s\n", device.DisplayName(), selectedLayout.Name)
+
 	return nil
 }
 
-func runAddManual(device, layout string) error {
-	fmt.Printf("Adding mapping: %s -> %s\n", device, layout)
-	fmt.Println("(Not yet implemented)")
-	// TODO: Implement manual mapping
+func runAddManual(deviceID, layoutName string) error {
+	// Initialize app
+	app, err := infrastructure.NewApp()
+	if err != nil {
+		return fmt.Errorf("failed to initialize: %w", err)
+	}
+
+	ctx := context.Background()
+
+	// Load current config
+	_ = app.ManageMappingsUC.LoadFromConfig(ctx)
+
+	// Get current OS
+	var os domain.OperatingSystem
+	switch runtime.GOOS {
+	case "linux":
+		os = domain.OSLinux
+	case "darwin":
+		os = domain.OSMacOS
+	case "windows":
+		os = domain.OSWindows
+	default:
+		os = domain.OSLinux
+	}
+
+	// Create a device object
+	device := domain.NewDevice("unknown", "unknown", deviceID)
+	device.ID = deviceID
+
+	// Add mapping
+	if err := app.ManageMappingsUC.AddMapping(ctx, device, layoutName, os); err != nil {
+		return fmt.Errorf("failed to add mapping: %w", err)
+	}
+
+	// Save to config
+	if err := app.ManageMappingsUC.SaveToConfig(ctx); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	fmt.Printf("✓ Mapping created: %s → %s\n", deviceID, layoutName)
+
 	return nil
 }
