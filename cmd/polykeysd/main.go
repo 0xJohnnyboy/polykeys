@@ -2,15 +2,22 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/0xJohnnyboy/polykeys/internal/infrastructure"
 )
 
 func main() {
 	log.Println("Polykeys daemon starting...")
+
+	// Initialize app
+	app, err := infrastructure.NewApp()
+	if err != nil {
+		log.Fatalf("Failed to initialize: %v", err)
+	}
 
 	// Create context that cancels on interrupt
 	ctx, cancel := context.WithCancel(context.Background())
@@ -26,12 +33,19 @@ func main() {
 		cancel()
 	}()
 
-	// TODO: Initialize adapters and use cases
-	// TODO: Start device monitoring
-	// TODO: Wait for shutdown
+	// Load configuration
+	if err := app.ManageMappingsUC.LoadFromConfig(ctx); err != nil {
+		log.Printf("Warning: Failed to load config: %v", err)
+		log.Println("Daemon will run without mappings. Use 'polykeys add' to configure.")
+	}
 
-	log.Println("Polykeys daemon ready")
-	fmt.Println("(Daemon implementation not yet complete)")
+	// Start device monitoring
+	if err := app.MonitorDevicesUC.StartMonitoring(ctx); err != nil {
+		log.Fatalf("Failed to start monitoring: %v", err)
+	}
+	defer app.MonitorDevicesUC.StopMonitoring()
+
+	log.Println("Polykeys daemon ready - monitoring for device changes")
 
 	// Wait for context cancellation
 	<-ctx.Done()
