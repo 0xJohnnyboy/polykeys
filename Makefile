@@ -18,7 +18,13 @@ build:
 	@echo "Build complete: $(BINARY_CLI), $(BINARY_DAEMON)"
 
 # Build for all platforms
-build-all: build-linux build-windows build-darwin
+build-all: build-linux build-windows
+	@if [ "$$(go env GOOS)" = "darwin" ]; then \
+		echo "Building for macOS (native)..."; \
+		$(MAKE) build-darwin; \
+	else \
+		echo "Skipping macOS build (requires native compilation on macOS with CGO)"; \
+	fi
 	@echo "All builds complete"
 
 # Build for Linux
@@ -40,9 +46,11 @@ build-windows:
 # Build for macOS
 build-darwin:
 	@echo "Building for macOS..."
+	@echo "Note: Cross-compiled macOS builds have CGO disabled and are non-functional."
+	@echo "For a working macOS build, compile natively on macOS with: make build"
 	@mkdir -p dist/darwin
-	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dist/darwin/$(BINARY_CLI) ./cmd/polykeys
-	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dist/darwin/$(BINARY_DAEMON) ./cmd/polykeysd
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dist/darwin/$(BINARY_CLI) ./cmd/polykeys
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dist/darwin/$(BINARY_DAEMON) ./cmd/polykeysd
 	@echo "macOS build complete: dist/darwin/"
 
 # Run tests

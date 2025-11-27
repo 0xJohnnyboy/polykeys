@@ -3,15 +3,15 @@
 package infrastructure
 
 import (
-	"fmt"
-
+	"github.com/0xJohnnyboy/polykeys/internal/adapters/devices"
+	"github.com/0xJohnnyboy/polykeys/internal/adapters/layouts"
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
 )
 
 func createPlatformDeviceDetector() (domain.DeviceDetector, error) {
-	return nil, fmt.Errorf("macOS device detector not yet implemented")
+	return devices.NewDarwinDeviceDetector()
 }
 
 func createPlatformLayoutSwitcher() (domain.LayoutSwitcher, error) {
-	return nil, fmt.Errorf("macOS layout switcher not yet implemented")
+	return layouts.NewDarwinLayoutSwitcher(), nil
 }

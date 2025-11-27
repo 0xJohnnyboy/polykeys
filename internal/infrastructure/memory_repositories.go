@@ -184,8 +184,21 @@ func getDefaultLayoutsForOS(os domain.OperatingSystem) []*domain.KeyboardLayout 
 			domain.NewKeyboardLayout(domain.LayoutJapanese, os, "00000411"),
 		}
 	case domain.OSMacOS:
-		// TODO: Add macOS layouts
-		return []*domain.KeyboardLayout{}
+		return []*domain.KeyboardLayout{
+			domain.NewKeyboardLayout(domain.LayoutUSQwerty, os, "com.apple.keylayout.US"),
+			domain.NewKeyboardLayout(domain.LayoutUSInternational, os, "com.apple.keylayout.USInternational-PC"),
+			domain.NewKeyboardLayout(domain.LayoutUSInternationalDeadKeys, os, "com.apple.keylayout.USInternational-PC"),
+			domain.NewKeyboardLayout(domain.LayoutFrenchAzerty, os, "com.apple.keylayout.French"),
+			domain.NewKeyboardLayout(domain.LayoutUKQwerty, os, "com.apple.keylayout.British"),
+			domain.NewKeyboardLayout(domain.LayoutColemak, os, "com.apple.keylayout.Colemak"),
+			domain.NewKeyboardLayout(domain.LayoutDvorak, os, "com.apple.keylayout.Dvorak"),
+			domain.NewKeyboardLayout(domain.LayoutGerman, os, "com.apple.keylayout.German"),
+			domain.NewKeyboardLayout(domain.LayoutSpanish, os, "com.apple.keylayout.Spanish"),
+			domain.NewKeyboardLayout(domain.LayoutItalian, os, "com.apple.keylayout.Italian"),
+			domain.NewKeyboardLayout(domain.LayoutPortuguese, os, "com.apple.keylayout.Portuguese"),
+			domain.NewKeyboardLayout(domain.LayoutRussian, os, "com.apple.keylayout.Russian"),
+			domain.NewKeyboardLayout(domain.LayoutJapanese, os, "com.apple.inputmethod.Kotoeri.Japanese"),
+		}
 	default:
 		return []*domain.KeyboardLayout{}
 	}
