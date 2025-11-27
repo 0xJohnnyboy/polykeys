@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"sync"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
@@ -141,11 +142,22 @@ func (r *InMemoryLayoutRepository) populateDefaultLayouts() {
 }
 
 func getCurrentOS() string {
-	return "linux" // Simplified for now
+	// Use runtime.GOOS to detect the actual OS
+	switch runtime.GOOS {
+	case "linux":
+		return "linux"
+	case "darwin":
+		return "darwin"
+	case "windows":
+		return "windows"
+	default:
+		return "linux"
+	}
 }
 
 func getDefaultLayoutsForOS(os domain.OperatingSystem) []*domain.KeyboardLayout {
-	if os == domain.OSLinux {
+	switch os {
+	case domain.OSLinux:
 		return []*domain.KeyboardLayout{
 			domain.NewKeyboardLayout(domain.LayoutUSQwerty, os, "us"),
 			domain.NewKeyboardLayout(domain.LayoutUSInternational, os, "us -variant intl"),
@@ -155,8 +167,28 @@ func getDefaultLayoutsForOS(os domain.OperatingSystem) []*domain.KeyboardLayout 
 			domain.NewKeyboardLayout(domain.LayoutColemak, os, "us -variant colemak"),
 			domain.NewKeyboardLayout(domain.LayoutDvorak, os, "us -variant dvorak"),
 		}
+	case domain.OSWindows:
+		return []*domain.KeyboardLayout{
+			domain.NewKeyboardLayout(domain.LayoutUSQwerty, os, "00000409"),
+			domain.NewKeyboardLayout(domain.LayoutUSInternational, os, "00020409"),
+			domain.NewKeyboardLayout(domain.LayoutUSInternationalDeadKeys, os, "00020409"),
+			domain.NewKeyboardLayout(domain.LayoutFrenchAzerty, os, "0000040c"),
+			domain.NewKeyboardLayout(domain.LayoutUKQwerty, os, "00000809"),
+			domain.NewKeyboardLayout(domain.LayoutColemak, os, "00000409"),
+			domain.NewKeyboardLayout(domain.LayoutDvorak, os, "00010409"),
+			domain.NewKeyboardLayout(domain.LayoutGerman, os, "00000407"),
+			domain.NewKeyboardLayout(domain.LayoutSpanish, os, "0000040a"),
+			domain.NewKeyboardLayout(domain.LayoutItalian, os, "00000410"),
+			domain.NewKeyboardLayout(domain.LayoutPortuguese, os, "00000816"),
+			domain.NewKeyboardLayout(domain.LayoutRussian, os, "00000419"),
+			domain.NewKeyboardLayout(domain.LayoutJapanese, os, "00000411"),
+		}
+	case domain.OSMacOS:
+		// TODO: Add macOS layouts
+		return []*domain.KeyboardLayout{}
+	default:
+		return []*domain.KeyboardLayout{}
 	}
-	return []*domain.KeyboardLayout{}
 }
 
 func (r *InMemoryLayoutRepository) Save(ctx context.Context, layout *domain.KeyboardLayout) error {
