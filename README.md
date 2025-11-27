@@ -56,9 +56,29 @@ polykeys list
 
 ## Supported platforms
 
-- Linux
-- macOS
-- Windows
+- Linux (native)
+- macOS (in progress)
+- Windows (in progress)
+
+## Important notes
+
+### WSL (Windows Subsystem for Linux)
+
+Polykeys **does not work on WSL** due to limitations in device access:
+- WSL does not expose `/dev/input` for USB device monitoring
+- USB events are not propagated to the WSL environment
+- Layout switching commands may not affect the Windows host
+
+**Workarounds:**
+- Run polykeys natively on Windows (use the Windows build)
+- Use a native Linux installation (dual boot or VM)
+- Use WSL2 with usbipd (complex setup, not recommended)
+
+### Permissions
+
+On Linux, you may need appropriate permissions to access `/dev/input`. If the daemon fails to start, try:
+- Adding your user to the `input` group: `sudo usermod -a -G input $USER`
+- Running the daemon with `sudo` (not recommended for production)
 
 ## License
 
