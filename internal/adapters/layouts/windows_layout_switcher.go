@@ -5,8 +5,11 @@ package layouts
 import (
 	"context"
 	"fmt"
+	"syscall"
+	"unsafe"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
+	"golang.org/x/sys/windows"
 )
 
 // WindowsLayoutSwitcher switches keyboard layouts on Windows
@@ -60,24 +63,117 @@ func (s *WindowsLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain
 	// Get the KLID
 	klid := s.getKLID(layout)
 
-	// Windows implementation would use:
-	// - LoadKeyboardLayout Win32 API
-	// - ActivateKeyboardLayout
-	// - Or send WM_INPUTLANGCHANGEREQUEST message
+	// Load the keyboard layout
+	hkl, err := s.loadKeyboardLayout(klid)
+	if err != nil {
+		return fmt.Errorf("failed to load keyboard layout %s: %w", klid, err)
+	}
 
-	// Simplified placeholder
-	_ = klid
-	return fmt.Errorf("Windows layout switching not yet fully implemented (would switch to KLID: %s)", klid)
+	// Activate the layout for the current thread
+	if err := s.activateKeyboardLayout(hkl); err != nil {
+		return fmt.Errorf("failed to activate keyboard layout: %w", err)
+	}
+
+	// Broadcast to all windows to switch layout
+	if err := s.broadcastLayoutChange(hkl); err != nil {
+		return fmt.Errorf("failed to broadcast layout change: %w", err)
+	}
+
+	return nil
+}
+
+// loadKeyboardLayout loads a keyboard layout by KLID
+func (s *WindowsLayoutSwitcher) loadKeyboardLayout(klid string) (windows.Handle, error) {
+	user32 := windows.NewLazySystemDLL("user32.dll")
+	procLoadKeyboardLayout := user32.NewProc("LoadKeyboardLayoutW")
+
+	klidUTF16, err := windows.UTF16PtrFromString(klid)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert KLID to UTF16: %w", err)
+	}
+
+	// KLF_ACTIVATE = 0x00000001
+	const KLF_ACTIVATE = 0x00000001
+
+	ret, _, err := procLoadKeyboardLayout.Call(
+		uintptr(unsafe.Pointer(klidUTF16)),
+		uintptr(KLF_ACTIVATE),
+	)
+
+	if ret == 0 {
+		return 0, fmt.Errorf("LoadKeyboardLayout failed: %w", err)
+	}
+
+	return windows.Handle(ret), nil
+}
+
+// activateKeyboardLayout activates a loaded keyboard layout
+func (s *WindowsLayoutSwitcher) activateKeyboardLayout(hkl windows.Handle) error {
+	user32 := windows.NewLazySystemDLL("user32.dll")
+	procActivateKeyboardLayout := user32.NewProc("ActivateKeyboardLayout")
+
+	// HKL_PREV = 0, HKL_NEXT = 1
+	const KLF_SETFORPROCESS = 0x00000100
+
+	ret, _, err := procActivateKeyboardLayout.Call(
+		uintptr(hkl),
+		uintptr(KLF_SETFORPROCESS),
+	)
+
+	if ret == 0 {
+		return fmt.Errorf("ActivateKeyboardLayout failed: %w", err)
+	}
+
+	return nil
+}
+
+// broadcastLayoutChange broadcasts the layout change to all windows
+func (s *WindowsLayoutSwitcher) broadcastLayoutChange(hkl windows.Handle) error {
+	user32 := windows.NewLazySystemDLL("user32.dll")
+	procSendMessage := user32.NewProc("SendMessageW")
+
+	// WM_INPUTLANGCHANGEREQUEST = 0x0050
+	const WM_INPUTLANGCHANGEREQUEST = 0x0050
+	const HWND_BROADCAST = 0xFFFF
+
+	_, _, _ = procSendMessage.Call(
+		uintptr(HWND_BROADCAST),
+		uintptr(WM_INPUTLANGCHANGEREQUEST),
+		0,
+		uintptr(hkl),
+	)
+
+	// SendMessage doesn't fail for broadcasts
+	return nil
 }
 
 // GetCurrentLayout retrieves the currently active layout
 func (s *WindowsLayoutSwitcher) GetCurrentLayout(ctx context.Context) (*domain.KeyboardLayout, error) {
-	// Windows implementation would use:
-	// - GetKeyboardLayout to get HKL
-	// - Extract KLID from HKL
-	// - Map back to layout name
+	user32 := windows.NewLazySystemDLL("user32.dll")
+	procGetKeyboardLayout := user32.NewProc("GetKeyboardLayout")
 
-	return nil, fmt.Errorf("Windows current layout detection not yet implemented")
+	// Get current thread ID (0 = current thread)
+	ret, _, _ := procGetKeyboardLayout.Call(0)
+
+	if ret == 0 {
+		return nil, fmt.Errorf("GetKeyboardLayout failed")
+	}
+
+	hkl := windows.Handle(ret)
+
+	// Extract KLID from HKL (lower 16 bits contain language ID)
+	langID := uint16(hkl & 0xFFFF)
+	klid := fmt.Sprintf("%08x", langID)
+
+	// Try to find matching layout
+	for name, mappedKLID := range s.layoutMap {
+		if mappedKLID == klid {
+			return domain.NewKeyboardLayout(name, domain.OSWindows, klid), nil
+		}
+	}
+
+	// Return generic layout with KLID
+	return domain.NewKeyboardLayout(fmt.Sprintf("Layout-%s", klid), domain.OSWindows, klid), nil
 }
 
 // GetAvailableLayouts returns all available layouts for Windows
