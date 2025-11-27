@@ -193,11 +193,13 @@ func (d *DarwinDeviceDetector) scanDevices() error {
 	cmd := exec.Command("system_profiler", "SPUSBDataType", "-json")
 	output, err := cmd.Output()
 	if err != nil {
+		fmt.Printf("[Detector] system_profiler failed: %v\n", err)
 		return fmt.Errorf("system_profiler failed: %w", err)
 	}
 
 	var result SPUSBDataType
 	if err := json.Unmarshal(output, &result); err != nil {
+		fmt.Printf("[Detector] Failed to parse JSON: %v\n", err)
 		return fmt.Errorf("failed to parse system_profiler output: %w", err)
 	}
 
@@ -212,6 +214,8 @@ func (d *DarwinDeviceDetector) scanDevices() error {
 		d.processUSBDevice(usbBus)
 	}
 
+	fmt.Printf("[Detector] Scan complete: found %d keyboards\n", len(d.devices))
+
 	return nil
 }
 
@@ -220,6 +224,12 @@ func (d *DarwinDeviceDetector) processUSBDevice(usbDevice SPUSBDevice) {
 	// Check if this is a keyboard (by name)
 	isKeyboard := strings.Contains(strings.ToLower(usbDevice.Name), "keyboard") ||
 		strings.Contains(strings.ToLower(usbDevice.Name), "keeb")
+
+	// Debug: log all USB devices
+	if usbDevice.VendorID != "" && usbDevice.ProductID != "" {
+		fmt.Printf("[Detector] USB Device: %s (VID=%s, PID=%s, isKeyboard=%v)\n",
+			usbDevice.Name, usbDevice.VendorID, usbDevice.ProductID, isKeyboard)
+	}
 
 	if isKeyboard && usbDevice.VendorID != "" && usbDevice.ProductID != "" {
 		// Parse VID and PID (format: "0x046d" -> "046d")
@@ -230,8 +240,11 @@ func (d *DarwinDeviceDetector) processUSBDevice(usbDevice SPUSBDevice) {
 
 		// Skip Apple internal keyboards (vendor ID 05ac is Apple)
 		if vendorID == "05ac" && strings.Contains(strings.ToLower(usbDevice.Name), "internal") {
+			fmt.Printf("[Detector] Skipping Apple internal keyboard: %s\n", usbDevice.Name)
 			return
 		}
+
+		fmt.Printf("[Detector] Found keyboard: %s (%s)\n", usbDevice.Name, deviceID)
 
 		device := domain.NewDevice(vendorID, productID, usbDevice.Name)
 		device.ID = deviceID
