@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
+	"github.com/0xJohnnyboy/polykeys/internal/logger"
 )
 
 // DarwinDeviceDetector detects USB/HID devices on macOS
@@ -102,7 +103,7 @@ func (d *DarwinDeviceDetector) pollDevices(ctx context.Context) {
 			pollCount++
 			// Log every 30 polls (every minute) to show we're still alive
 			if pollCount%30 == 0 {
-				fmt.Printf("[Detector] Polling active (count: %d, tracking %d devices)\n", pollCount, len(previousDevices))
+				logger.Debug("[Detector] Polling active (count: %d, tracking %d devices)\n", pollCount, len(previousDevices))
 			}
 			if !d.polling {
 				return
@@ -110,7 +111,7 @@ func (d *DarwinDeviceDetector) pollDevices(ctx context.Context) {
 
 			// Scan for current devices
 			if err := d.scanDevices(); err != nil {
-				fmt.Printf("[Detector] Error scanning devices: %v\n", err)
+				logger.Debug("[Detector] Error scanning devices: %v\n", err)
 				continue
 			}
 
@@ -130,7 +131,7 @@ func (d *DarwinDeviceDetector) pollDevices(ctx context.Context) {
 						go func(dev *domain.Device) {
 							defer func() {
 								if r := recover(); r != nil {
-									fmt.Printf("[Detector] Panic in connected callback: %v\n", r)
+									logger.Debug("[Detector] Panic in connected callback: %v\n", r)
 								}
 							}()
 							d.onConnectedCallback(dev)
@@ -149,7 +150,7 @@ func (d *DarwinDeviceDetector) pollDevices(ctx context.Context) {
 						go func(dev *domain.Device) {
 							defer func() {
 								if r := recover(); r != nil {
-									fmt.Printf("[Detector] Panic in disconnected callback: %v\n", r)
+									logger.Debug("[Detector] Panic in disconnected callback: %v\n", r)
 								}
 							}()
 							d.onDisconnectedCallback(dev)
@@ -193,13 +194,13 @@ func (d *DarwinDeviceDetector) scanDevices() error {
 	cmd := exec.Command("system_profiler", "SPUSBDataType", "-json")
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("[Detector] system_profiler failed: %v\n", err)
+		logger.Debug("[Detector] system_profiler failed: %v\n", err)
 		return fmt.Errorf("system_profiler failed: %w", err)
 	}
 
 	var result SPUSBDataType
 	if err := json.Unmarshal(output, &result); err != nil {
-		fmt.Printf("[Detector] Failed to parse JSON: %v\n", err)
+		logger.Debug("[Detector] Failed to parse JSON: %v\n", err)
 		return fmt.Errorf("failed to parse system_profiler output: %w", err)
 	}
 
@@ -214,7 +215,7 @@ func (d *DarwinDeviceDetector) scanDevices() error {
 		d.processUSBDevice(usbBus)
 	}
 
-	fmt.Printf("[Detector] Scan complete: found %d keyboards\n", len(d.devices))
+	logger.Debug("[Detector] Scan complete: found %d keyboards\n", len(d.devices))
 
 	return nil
 }
@@ -230,7 +231,7 @@ func (d *DarwinDeviceDetector) processUSBDevice(usbDevice SPUSBDevice) {
 
 		deviceID := vendorID + ":" + productID
 
-		fmt.Printf("[Detector] USB Device: %s (%s)\n", usbDevice.Name, deviceID)
+		logger.Debug("[Detector] USB Device: %s (%s)\n", usbDevice.Name, deviceID)
 
 		// Skip some known non-keyboard devices
 		skipDevices := []string{
@@ -250,9 +251,9 @@ func (d *DarwinDeviceDetector) processUSBDevice(usbDevice SPUSBDevice) {
 		}
 
 		if shouldSkip {
-			fmt.Printf("[Detector] Skipping non-keyboard device: %s\n", usbDevice.Name)
+			logger.Debug("[Detector] Skipping non-keyboard device: %s\n", usbDevice.Name)
 		} else {
-			fmt.Printf("[Detector] Found potential keyboard: %s (%s)\n", usbDevice.Name, deviceID)
+			logger.Debug("[Detector] Found potential keyboard: %s (%s)\n", usbDevice.Name, deviceID)
 
 			device := domain.NewDevice(vendorID, productID, usbDevice.Name)
 			device.ID = deviceID

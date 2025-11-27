@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
+	"github.com/0xJohnnyboy/polykeys/internal/logger"
 	"github.com/StackExchange/wmi"
 )
 
@@ -111,7 +112,7 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 
 			// Scan for current devices
 			if err := d.scanDevices(); err != nil {
-				fmt.Printf("[Detector] Error scanning devices: %v\n", err)
+				logger.Debug("[Detector] Error scanning devices: %v\n", err)
 				continue
 			}
 

@@ -2,15 +2,26 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/0xJohnnyboy/polykeys/internal/infrastructure"
+	"github.com/0xJohnnyboy/polykeys/internal/logger"
+)
+
+var (
+	debug = flag.Bool("debug", false, "Enable debug logging")
 )
 
 func main() {
+	flag.Parse()
+
+	// Set debug mode
+	logger.SetDebug(*debug)
+
 	log.Println("Polykeys daemon starting...")
 
 	// Initialize app

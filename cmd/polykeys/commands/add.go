@@ -10,6 +10,7 @@ import (
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
 	"github.com/0xJohnnyboy/polykeys/internal/infrastructure"
+	"github.com/0xJohnnyboy/polykeys/internal/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -48,6 +49,9 @@ func runAdd(cmd *cobra.Command, args []string) error {
 }
 
 func runAddDetect() error {
+	// Set debug mode
+	logger.SetDebug(Debug)
+
 	// Initialize app
 	app, err := infrastructure.NewApp()
 	if err != nil {

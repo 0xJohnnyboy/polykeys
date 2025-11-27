@@ -4,6 +4,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	Debug bool
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "polykeys",
 	Short: "Manage keyboard layouts based on connected devices",
@@ -18,6 +22,8 @@ func Execute() error {
 }
 
 func init() {
+	rootCmd.PersistentFlags().BoolVar(&Debug, "debug", false, "Enable debug logging")
+
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(removeCmd)

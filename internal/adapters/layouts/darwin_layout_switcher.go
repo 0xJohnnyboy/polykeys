@@ -129,6 +129,7 @@ import (
 	"unsafe"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
+	"github.com/0xJohnnyboy/polykeys/internal/logger"
 )
 
 // DarwinLayoutSwitcher switches keyboard layouts on macOS
@@ -159,7 +160,7 @@ func (s *DarwinLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.
 
 	// If selection by ID failed, try by localized name as fallback
 	// This handles cases where the layout name differs (e.g., "ABC-AZERTY" vs "French")
-	fmt.Printf("[Switcher] Layout ID %s not found, trying by name: %s\n", sourceID, layout.Name)
+	logger.Debug("[Switcher] Layout ID %s not found, trying by name: %s\n", sourceID, layout.Name)
 
 	cName := C.CString(layout.Name)
 	result = C.selectInputSourceByName(cName)
@@ -167,7 +168,7 @@ func (s *DarwinLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.
 
 	switch result {
 	case 0:
-		fmt.Printf("[Switcher] Successfully switched to %s by name\n", layout.Name)
+		logger.Debug("[Switcher] Successfully switched to %s by name\n", layout.Name)
 		return nil
 	case -1:
 		return fmt.Errorf("failed to create name string")
