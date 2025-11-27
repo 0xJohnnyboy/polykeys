@@ -13,9 +13,10 @@ all: build
 # Build for current platform
 build:
 	@echo "Building for current platform..."
-	go build $(LDFLAGS) -o $(BINARY_CLI) ./cmd/polykeys
-	go build $(LDFLAGS) -o $(BINARY_DAEMON) ./cmd/polykeysd
-	@echo "Build complete: $(BINARY_CLI), $(BINARY_DAEMON)"
+	@mkdir -p dist
+	go build $(LDFLAGS) -o dist/$(BINARY_CLI) ./cmd/polykeys
+	go build $(LDFLAGS) -o dist/$(BINARY_DAEMON) ./cmd/polykeysd
+	@echo "Build complete: dist/$(BINARY_CLI), dist/$(BINARY_DAEMON)"
 
 # Build for all platforms
 build-all: build-linux build-windows

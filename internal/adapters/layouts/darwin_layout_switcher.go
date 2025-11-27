@@ -132,44 +132,11 @@ import (
 )
 
 // DarwinLayoutSwitcher switches keyboard layouts on macOS
-type DarwinLayoutSwitcher struct {
-	// Map of layout names to macOS input source IDs
-	layoutMap map[string]string
-}
+type DarwinLayoutSwitcher struct{}
 
 // NewDarwinLayoutSwitcher creates a new macOS layout switcher
 func NewDarwinLayoutSwitcher() *DarwinLayoutSwitcher {
-	return &DarwinLayoutSwitcher{
-		layoutMap: getDefaultDarwinLayoutMap(),
-	}
-}
-
-// getDefaultDarwinLayoutMap returns a map of layout names to macOS input source IDs
-func getDefaultDarwinLayoutMap() map[string]string {
-	return map[string]string{
-		// US layouts
-		domain.LayoutUSQwerty:                "com.apple.keylayout.US",
-		domain.LayoutUSInternational:         "com.apple.keylayout.USInternational-PC",
-		domain.LayoutUSInternationalDeadKeys: "com.apple.keylayout.USInternational-PC",
-
-		// French layouts - try ABC-AZERTY first (modern macOS), fallback to French
-		domain.LayoutFrenchAzerty: "com.apple.keylayout.ABC-AZERTY",
-
-		// UK layouts
-		domain.LayoutUKQwerty: "com.apple.keylayout.British",
-
-		// Alternative layouts
-		domain.LayoutColemak: "com.apple.keylayout.Colemak",
-		domain.LayoutDvorak:  "com.apple.keylayout.Dvorak",
-
-		// Other languages
-		domain.LayoutGerman:     "com.apple.keylayout.German",
-		domain.LayoutSpanish:    "com.apple.keylayout.Spanish",
-		domain.LayoutItalian:    "com.apple.keylayout.Italian",
-		domain.LayoutPortuguese: "com.apple.keylayout.Portuguese",
-		domain.LayoutRussian:    "com.apple.keylayout.Russian",
-		domain.LayoutJapanese:   "com.apple.inputmethod.Kotoeri.Japanese",
-	}
+	return &DarwinLayoutSwitcher{}
 }
 
 // SwitchLayout changes the system keyboard layout
@@ -248,21 +215,11 @@ func (s *DarwinLayoutSwitcher) GetAvailableLayouts(ctx context.Context) ([]*doma
 
 // getSourceID returns the macOS input source ID for a layout
 func (s *DarwinLayoutSwitcher) getSourceID(layout *domain.KeyboardLayout) string {
-	// First try to use the system identifier directly
+	// Use the system identifier from the layout (set by the repository)
 	if layout.SystemIdentifier != "" {
 		return layout.SystemIdentifier
 	}
 
-	// Otherwise, try to map the layout name
-	if sourceID, exists := s.layoutMap[layout.Name]; exists {
-		return sourceID
-	}
-
-	// Fallback
+	// Fallback to US if no identifier is set
 	return "com.apple.keylayout.US"
-}
-
-// AddLayoutMapping adds a custom layout mapping
-func (s *DarwinLayoutSwitcher) AddLayoutMapping(name, sourceID string) {
-	s.layoutMap[name] = sourceID
 }
