@@ -25,28 +25,52 @@ func NewLuaConfigLoader() *LuaConfigLoader {
 
 // getDefaultConfigPaths returns the default configuration file paths in order of priority
 func getDefaultConfigPaths() []string {
-	paths := make([]string, 0, 4)
+	paths := make([]string, 0, 6)
 
-	// XDG_CONFIG_HOME/polykeys/polykeys.lua
-	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-		paths = append(paths, filepath.Join(xdgConfig, "polykeys", "polykeys.lua"))
-	}
+	// Detect if we're on Windows
+	isWindows := runtime.GOOS == "windows"
 
-	// HOME/.config/polykeys/polykeys.lua (fallback for XDG)
-	if home := os.Getenv("HOME"); home != "" {
-		paths = append(paths, filepath.Join(home, ".config", "polykeys", "polykeys.lua"))
-	}
+	if isWindows {
+		// Windows-specific paths
+		// APPDATA/polykeys/polykeys.lua
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			paths = append(paths, filepath.Join(appData, "polykeys", "polykeys.lua"))
+		}
 
-	// XDG_CONFIG_HOME/polykeys.lua
-	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-		paths = append(paths, filepath.Join(xdgConfig, "polykeys.lua"))
-	}
+		// USERPROFILE/.config/polykeys/polykeys.lua
+		if userProfile := os.Getenv("USERPROFILE"); userProfile != "" {
+			paths = append(paths, filepath.Join(userProfile, ".config", "polykeys", "polykeys.lua"))
+			paths = append(paths, filepath.Join(userProfile, "polykeys", "polykeys.lua"))
+			paths = append(paths, filepath.Join(userProfile, "polykeys.lua"))
+		}
 
-	// HOME/polykeys/polykeys.lua
-	if home := os.Getenv("HOME"); home != "" {
-		paths = append(paths, filepath.Join(home, "polykeys", "polykeys.lua"))
-		// HOME/polykeys.lua
-		paths = append(paths, filepath.Join(home, "polykeys.lua"))
+		// LOCALAPPDATA/polykeys/polykeys.lua
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			paths = append(paths, filepath.Join(localAppData, "polykeys", "polykeys.lua"))
+		}
+	} else {
+		// Unix-like systems (Linux, macOS)
+		// XDG_CONFIG_HOME/polykeys/polykeys.lua
+		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+			paths = append(paths, filepath.Join(xdgConfig, "polykeys", "polykeys.lua"))
+		}
+
+		// HOME/.config/polykeys/polykeys.lua (fallback for XDG)
+		if home := os.Getenv("HOME"); home != "" {
+			paths = append(paths, filepath.Join(home, ".config", "polykeys", "polykeys.lua"))
+		}
+
+		// XDG_CONFIG_HOME/polykeys.lua
+		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+			paths = append(paths, filepath.Join(xdgConfig, "polykeys.lua"))
+		}
+
+		// HOME/polykeys/polykeys.lua
+		if home := os.Getenv("HOME"); home != "" {
+			paths = append(paths, filepath.Join(home, "polykeys", "polykeys.lua"))
+			// HOME/polykeys.lua
+			paths = append(paths, filepath.Join(home, "polykeys.lua"))
+		}
 	}
 
 	return paths
