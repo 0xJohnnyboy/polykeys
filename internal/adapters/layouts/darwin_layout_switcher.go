@@ -146,7 +146,6 @@ char* getCurrentInputSourceID() {
 import "C"
 import (
 	"context"
-	"fmt"
 	"unsafe"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
