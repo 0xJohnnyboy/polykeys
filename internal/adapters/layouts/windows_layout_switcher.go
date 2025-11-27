@@ -12,45 +12,11 @@ import (
 )
 
 // WindowsLayoutSwitcher switches keyboard layouts on Windows
-type WindowsLayoutSwitcher struct {
-	// Map of layout names to Windows layout identifiers (KLID)
-	layoutMap map[string]string
-}
+type WindowsLayoutSwitcher struct{}
 
 // NewWindowsLayoutSwitcher creates a new Windows layout switcher
 func NewWindowsLayoutSwitcher() *WindowsLayoutSwitcher {
-	return &WindowsLayoutSwitcher{
-		layoutMap: getDefaultWindowsLayoutMap(),
-	}
-}
-
-// getDefaultWindowsLayoutMap returns a map of layout names to Windows KLIDs
-// KLIDs are 8-digit hex values representing keyboard layouts
-func getDefaultWindowsLayoutMap() map[string]string {
-	return map[string]string{
-		// US layouts
-		domain.LayoutUSQwerty:                "00000409", // US
-		domain.LayoutUSInternational:         "00020409", // US International
-		domain.LayoutUSInternationalDeadKeys: "00020409", // US International
-
-		// French layouts
-		domain.LayoutFrenchAzerty: "0000040c", // French
-
-		// UK layouts
-		domain.LayoutUKQwerty: "00000809", // UK
-
-		// Alternative layouts
-		domain.LayoutColemak: "00000409", // Colemak (requires separate installation)
-		domain.LayoutDvorak:  "00010409", // US Dvorak
-
-		// Other languages
-		domain.LayoutGerman:     "00000407", // German
-		domain.LayoutSpanish:    "0000040a", // Spanish
-		domain.LayoutItalian:    "00000410", // Italian
-		domain.LayoutPortuguese: "00000816", // Portuguese
-		domain.LayoutRussian:    "00000419", // Russian
-		domain.LayoutJapanese:   "00000411", // Japanese
-	}
+	return &WindowsLayoutSwitcher{}
 }
 
 // SwitchLayout changes the system keyboard layout
@@ -183,21 +149,11 @@ func (s *WindowsLayoutSwitcher) broadcastLayoutChange(hkl windows.Handle) error 
 
 // getKLID returns the Windows KLID for a layout
 func (s *WindowsLayoutSwitcher) getKLID(layout *domain.KeyboardLayout) string {
-	// First try to use the system identifier directly
+	// Use the system identifier from the layout (set by the repository)
 	if layout.SystemIdentifier != "" {
 		return layout.SystemIdentifier
 	}
 
-	// Otherwise, try to map the layout name
-	if klid, exists := s.layoutMap[layout.Name]; exists {
-		return klid
-	}
-
-	// Fallback
-	return "00000409" // US layout
-}
-
-// AddLayoutMapping adds a custom layout mapping
-func (s *WindowsLayoutSwitcher) AddLayoutMapping(name, klid string) {
-	s.layoutMap[name] = klid
+	// Fallback to US layout if no identifier is set
+	return "00000409"
 }

@@ -10,44 +10,11 @@ import (
 )
 
 // LinuxLayoutSwitcher switches keyboard layouts on Linux using setxkbmap
-type LinuxLayoutSwitcher struct {
-	// Map of layout names to setxkbmap identifiers
-	layoutMap map[string]string
-}
+type LinuxLayoutSwitcher struct{}
 
 // NewLinuxLayoutSwitcher creates a new Linux layout switcher
 func NewLinuxLayoutSwitcher() *LinuxLayoutSwitcher {
-	return &LinuxLayoutSwitcher{
-		layoutMap: getDefaultLayoutMap(),
-	}
-}
-
-// getDefaultLayoutMap returns a map of layout names to setxkbmap identifiers
-func getDefaultLayoutMap() map[string]string {
-	return map[string]string{
-		// US layouts
-		domain.LayoutUSQwerty:                "us",
-		domain.LayoutUSInternational:         "us -variant intl",
-		domain.LayoutUSInternationalDeadKeys: "us -variant altgr-intl",
-
-		// French layouts
-		domain.LayoutFrenchAzerty: "fr",
-
-		// UK layouts
-		domain.LayoutUKQwerty: "gb",
-
-		// Alternative layouts
-		domain.LayoutColemak: "us -variant colemak",
-		domain.LayoutDvorak:  "us -variant dvorak",
-
-		// Other languages
-		domain.LayoutGerman:     "de",
-		domain.LayoutSpanish:    "es",
-		domain.LayoutItalian:    "it",
-		domain.LayoutPortuguese: "pt",
-		domain.LayoutRussian:    "ru",
-		domain.LayoutJapanese:   "jp",
-	}
+	return &LinuxLayoutSwitcher{}
 }
 
 // SwitchLayout changes the system keyboard layout
@@ -98,21 +65,11 @@ func (s *LinuxLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.K
 
 // getSetxkbmapIdentifier returns the setxkbmap identifier for a layout
 func (s *LinuxLayoutSwitcher) getSetxkbmapIdentifier(layout *domain.KeyboardLayout) string {
-	// First try to use the system identifier directly
+	// Use the system identifier from the layout (set by the repository)
 	if layout.SystemIdentifier != "" {
 		return layout.SystemIdentifier
 	}
 
-	// Otherwise, try to map the layout name
-	if identifier, exists := s.layoutMap[layout.Name]; exists {
-		return identifier
-	}
-
-	// Fallback: assume the layout name is the identifier
-	return strings.ToLower(layout.Name)
-}
-
-// AddLayoutMapping adds a custom layout mapping
-func (s *LinuxLayoutSwitcher) AddLayoutMapping(name, setxkbmapIdentifier string) {
-	s.layoutMap[name] = setxkbmapIdentifier
+	// Fallback to "us" if no identifier is set
+	return "us"
 }
