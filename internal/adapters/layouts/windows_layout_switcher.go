@@ -5,7 +5,6 @@ package layouts
 import (
 	"context"
 	"fmt"
-	"syscall"
 	"unsafe"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
