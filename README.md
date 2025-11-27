@@ -1,10 +1,19 @@
 # Polykeys
 
+> **Status:** Alpha v1.0.0-alpha.2 - Fully functional on Windows, Linux support in progress
+
 Switch your keyboard layout automatically based on which keyboard you plug in.
 
 ## What is this?
 
 You have multiple keyboards (Corne, Lily58, laptop keyboard...) and each one uses a different layout? Polykeys detects which keyboard you just connected and switches to the right layout automatically.
+
+**Current features:**
+- Automatic layout switching on device connection/disconnection
+- Interactive device detection with `polykeys add --detect`
+- System default fallback when no device is connected
+- Real-time device monitoring
+- Lua-based configuration
 
 ## Installation
 
@@ -33,21 +42,38 @@ go install github.com/0xJohnnyboy/polykeys/cmd/polykeys@latest
 
 ## Configuration
 
-Create a config file at `~/.config/polykeys/polykeys.lua`:
+Create a config file with device-to-layout mappings:
 
 ```lua
+-- Format: { "alias", "deviceID", "layout" }
 mappings = {
-    { "Corne", "US International" },
-    { "Lily58", "US" },
-    { "system_default", "French" },
+    { "Corne", "4653:0004", "US International" },
+    { "Lily58", "1209:bb58", "US" },
+    { "Logitech K380", "046d:c52b", "US" },
+
+    -- Fallback when no device matches
+    { "System Default", "system_default", "French AZERTY" },
 }
 ```
 
-The config can also be at:
-- `$XDG_CONFIG_HOME/polykeys/polykeys.lua`
+**Device ID format:** `VID:PID` (Vendor ID:Product ID in hex, lowercase)
+**Tip:** Use `polykeys add --detect` to automatically detect and add keyboards
+
+### Config file locations
+
+**Linux/macOS:**
+- `$XDG_CONFIG_HOME/polykeys/polykeys.lua` (preferred)
+- `~/.config/polykeys/polykeys.lua`
 - `$XDG_CONFIG_HOME/polykeys.lua`
 - `~/polykeys/polykeys.lua`
 - `~/polykeys.lua`
+
+**Windows:**
+- `%APPDATA%\polykeys\polykeys.lua` (preferred)
+- `%USERPROFILE%\.config\polykeys\polykeys.lua`
+- `%LOCALAPPDATA%\polykeys\polykeys.lua`
+- `%USERPROFILE%\polykeys\polykeys.lua`
+- `%USERPROFILE%\polykeys.lua`
 
 ## Usage
 
@@ -74,9 +100,15 @@ polykeys list
 
 ## Supported platforms
 
-- Linux (native)
-- macOS (in progress)
-- Windows (in progress)
+- ✅ **Windows** - Fully functional (alpha)
+- 🚧 **Linux** - In progress
+- 🚧 **macOS** - Planned
+
+### Windows implementation details
+- Device detection via WMI queries
+- Layout switching using Windows Keyboard Layout API
+- Polling-based detection (every 2 seconds)
+- Automatic switch to default layout on device disconnection
 
 ## Important notes
 
