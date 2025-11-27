@@ -36,15 +36,21 @@ int selectInputSourceByID(const char* sourceID) {
     return (status == noErr) ? 0 : -3;
 }
 
-// Helper function to find and select input source by localized name
+// Helper function to find and select input source by name (tries multiple properties)
 int selectInputSourceByName(const char* name) {
     CFStringRef nameRef = CFStringCreateWithCString(NULL, name, kCFStringEncodingUTF8);
     if (!nameRef) return -1;
+
+    // Also try with com.apple.keylayout. prefix for keyboard layouts
+    char idWithPrefix[256];
+    snprintf(idWithPrefix, sizeof(idWithPrefix), "com.apple.keylayout.%s", name);
+    CFStringRef idWithPrefixRef = CFStringCreateWithCString(NULL, idWithPrefix, kCFStringEncodingUTF8);
 
     // Get all input sources
     CFArrayRef sources = TISCreateInputSourceList(NULL, false);
     if (!sources) {
         CFRelease(nameRef);
+        if (idWithPrefixRef) CFRelease(idWithPrefixRef);
         return -2;
     }
 
@@ -53,15 +59,32 @@ int selectInputSourceByName(const char* name) {
 
     for (CFIndex i = 0; i < count; i++) {
         TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(sources, i);
-        CFStringRef localizedName = (CFStringRef)TISGetInputSourceProperty(source, kTISPropertyLocalizedName);
 
+        // Try localized name
+        CFStringRef localizedName = (CFStringRef)TISGetInputSourceProperty(source, kTISPropertyLocalizedName);
         if (localizedName && CFStringCompare(localizedName, nameRef, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             foundSource = source;
             break;
         }
+
+        // Try input source ID (full ID or just the name part)
+        CFStringRef sourceID = (CFStringRef)TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
+        if (sourceID) {
+            // Try exact match with com.apple.keylayout.NAME
+            if (idWithPrefixRef && CFStringCompare(sourceID, idWithPrefixRef, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
+                foundSource = source;
+                break;
+            }
+            // Try if sourceID ends with the name (for layouts like com.apple.keylayout.ABC-AZERTY)
+            if (CFStringHasSuffix(sourceID, nameRef)) {
+                foundSource = source;
+                break;
+            }
+        }
     }
 
     CFRelease(nameRef);
+    if (idWithPrefixRef) CFRelease(idWithPrefixRef);
 
     if (!foundSource) {
         CFRelease(sources);
@@ -129,8 +152,8 @@ func getDefaultDarwinLayoutMap() map[string]string {
 		domain.LayoutUSInternational:         "com.apple.keylayout.USInternational-PC",
 		domain.LayoutUSInternationalDeadKeys: "com.apple.keylayout.USInternational-PC",
 
-		// French layouts
-		domain.LayoutFrenchAzerty: "com.apple.keylayout.French",
+		// French layouts - try ABC-AZERTY first (modern macOS), fallback to French
+		domain.LayoutFrenchAzerty: "com.apple.keylayout.ABC-AZERTY",
 
 		// UK layouts
 		domain.LayoutUKQwerty: "com.apple.keylayout.British",
