@@ -157,20 +157,33 @@ func (l *LuaConfigLoader) parseMappings(L *lua.LState, table *lua.LTable) ([]*do
 
 		mappingTable := value.(*lua.LTable)
 
-		// Get device name/ID (first element)
-		deviceID := mappingTable.RawGetInt(1).String()
-		if deviceID == "" {
-			return
+		// Check number of elements to support both formats:
+		// New format: { "alias", "deviceID", "layoutName" }
+		// Old format: { "deviceID", "layoutName" }
+
+		var alias, deviceID, layoutName string
+
+		// Try to get third element
+		thirdElement := mappingTable.RawGetInt(3).String()
+
+		if thirdElement != "" {
+			// New format with 3 elements
+			alias = mappingTable.RawGetInt(1).String()
+			deviceID = mappingTable.RawGetInt(2).String()
+			layoutName = thirdElement
+		} else {
+			// Old format with 2 elements
+			deviceID = mappingTable.RawGetInt(1).String()
+			layoutName = mappingTable.RawGetInt(2).String()
+			alias = deviceID // Use deviceID as display name
 		}
 
-		// Get layout name (second element)
-		layoutName := mappingTable.RawGetInt(2).String()
-		if layoutName == "" {
+		if deviceID == "" || layoutName == "" {
 			return
 		}
 
 		// Create mapping
-		mapping := domain.NewMapping(deviceID, deviceID, layoutName, currentOS)
+		mapping := domain.NewMapping(deviceID, alias, layoutName, currentOS)
 		mappings = append(mappings, mapping)
 	})
 
@@ -203,15 +216,19 @@ func (l *LuaConfigLoader) Save(ctx context.Context, config *domain.Config) error
 
 // generateLuaConfig generates Lua configuration content
 func (l *LuaConfigLoader) generateLuaConfig(config *domain.Config) string {
-	content := "-- Polykeys configuration\n\n"
+	content := "-- Polykeys configuration\n"
+	content += "-- Format: { \"alias\", \"deviceID\", \"layout\" }\n\n"
 	content += "mappings = {\n"
 
 	for _, mapping := range config.Mappings {
-		deviceName := mapping.DeviceDisplayName
-		if deviceName == "" {
-			deviceName = mapping.DeviceID
+		alias := mapping.DeviceDisplayName
+		if alias == "" {
+			alias = mapping.DeviceID
 		}
-		content += fmt.Sprintf("    { \"%s\", \"%s\" },\n", deviceName, mapping.LayoutName)
+
+		// Write in new 3-element format
+		content += fmt.Sprintf("    { \"%s\", \"%s\", \"%s\" },\n",
+			alias, mapping.DeviceID, mapping.LayoutName)
 	}
 
 	content += "}\n\n"
