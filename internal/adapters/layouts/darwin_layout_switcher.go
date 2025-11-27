@@ -36,6 +36,44 @@ int selectInputSourceByID(const char* sourceID) {
     return (status == noErr) ? 0 : -3;
 }
 
+// Helper function to find and select input source by localized name
+int selectInputSourceByName(const char* name) {
+    CFStringRef nameRef = CFStringCreateWithCString(NULL, name, kCFStringEncodingUTF8);
+    if (!nameRef) return -1;
+
+    // Get all input sources
+    CFArrayRef sources = TISCreateInputSourceList(NULL, false);
+    if (!sources) {
+        CFRelease(nameRef);
+        return -2;
+    }
+
+    TISInputSourceRef foundSource = NULL;
+    CFIndex count = CFArrayGetCount(sources);
+
+    for (CFIndex i = 0; i < count; i++) {
+        TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(sources, i);
+        CFStringRef localizedName = (CFStringRef)TISGetInputSourceProperty(source, kTISPropertyLocalizedName);
+
+        if (localizedName && CFStringCompare(localizedName, nameRef, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
+            foundSource = source;
+            break;
+        }
+    }
+
+    CFRelease(nameRef);
+
+    if (!foundSource) {
+        CFRelease(sources);
+        return -2;
+    }
+
+    OSStatus status = TISSelectInputSource(foundSource);
+    CFRelease(sources);
+
+    return (status == noErr) ? 0 : -3;
+}
+
 // Helper to get current input source ID
 char* getCurrentInputSourceID() {
     TISInputSourceRef currentSource = TISCopyCurrentKeyboardInputSource();
@@ -120,18 +158,31 @@ func (s *DarwinLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.
 	// Get the input source ID
 	sourceID := s.getSourceID(layout)
 
-	// Select the input source using Carbon API
+	// Try to select by ID first
 	cSourceID := C.CString(sourceID)
-	defer C.free(unsafe.Pointer(cSourceID))
-
 	result := C.selectInputSourceByID(cSourceID)
+	C.free(unsafe.Pointer(cSourceID))
+
+	if result == 0 {
+		return nil
+	}
+
+	// If selection by ID failed, try by localized name as fallback
+	// This handles cases where the layout name differs (e.g., "ABC-AZERTY" vs "French")
+	fmt.Printf("[Switcher] Layout ID %s not found, trying by name: %s\n", sourceID, layout.Name)
+
+	cName := C.CString(layout.Name)
+	result = C.selectInputSourceByName(cName)
+	C.free(unsafe.Pointer(cName))
+
 	switch result {
 	case 0:
+		fmt.Printf("[Switcher] Successfully switched to %s by name\n", layout.Name)
 		return nil
 	case -1:
-		return fmt.Errorf("failed to create source ID string")
+		return fmt.Errorf("failed to create name string")
 	case -2:
-		return fmt.Errorf("input source not found: %s", sourceID)
+		return fmt.Errorf("input source not found by ID (%s) or name (%s)", sourceID, layout.Name)
 	case -3:
 		return fmt.Errorf("failed to select input source")
 	default:
