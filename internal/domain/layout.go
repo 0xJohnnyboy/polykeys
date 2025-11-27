@@ -9,6 +9,33 @@ const (
 	OSWindows OperatingSystem = "windows"
 )
 
+// Common keyboard layout names
+// These constants ensure consistency across all adapters
+const (
+	// US layouts
+	LayoutUSQwerty                = "US Qwerty"
+	LayoutUSInternational         = "US International"
+	LayoutUSInternationalDeadKeys = "US International Dead Keys"
+
+	// French layouts
+	LayoutFrenchAzerty = "French AZERTY"
+
+	// UK layouts
+	LayoutUKQwerty = "UK Qwerty"
+
+	// Alternative layouts
+	LayoutColemak = "Colemak"
+	LayoutDvorak  = "Dvorak"
+
+	// Other languages
+	LayoutGerman     = "German"
+	LayoutSpanish    = "Spanish"
+	LayoutItalian    = "Italian"
+	LayoutPortuguese = "Portuguese"
+	LayoutRussian    = "Russian"
+	LayoutJapanese   = "Japanese"
+)
+
 // KeyboardLayout represents a keyboard layout configuration
 type KeyboardLayout struct {
 	// ID is a unique identifier for the layout
