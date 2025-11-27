@@ -87,11 +87,11 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	// Store previous device IDs
-	previousDevices := make(map[string]bool)
+	// Store previous device IDs and full device info for disconnection
+	previousDevices := make(map[string]*domain.Device)
 	d.mu.RLock()
-	for id := range d.devices {
-		previousDevices[id] = true
+	for id, device := range d.devices {
+		previousDevices[id] = device
 	}
 	d.mu.RUnlock()
 
@@ -117,7 +117,7 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 
 			// Check for new devices (connected)
 			for id, device := range currentDevices {
-				if !previousDevices[id] {
+				if _, existed := previousDevices[id]; !existed {
 					if d.onConnectedCallback != nil {
 						d.onConnectedCallback(device)
 					}
@@ -125,21 +125,19 @@ func (d *WindowsDeviceDetector) pollDevices(ctx context.Context) {
 			}
 
 			// Check for removed devices (disconnected)
-			for id := range previousDevices {
+			for id, device := range previousDevices {
 				if _, exists := currentDevices[id]; !exists {
-					// Device was disconnected
-					// We don't have the device object anymore, so create a placeholder
+					// Device was disconnected - use the stored device info
 					if d.onDisconnectedCallback != nil {
-						device := &domain.Device{ID: id}
 						d.onDisconnectedCallback(device)
 					}
 				}
 			}
 
-			// Update previous devices
-			previousDevices = make(map[string]bool)
-			for id := range currentDevices {
-				previousDevices[id] = true
+			// Update previous devices with full device info
+			previousDevices = make(map[string]*domain.Device)
+			for id, device := range currentDevices {
+				previousDevices[id] = device
 			}
 
 		case <-d.stopChan:
