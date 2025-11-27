@@ -2,11 +2,8 @@ package infrastructure
 
 import (
 	"fmt"
-	"runtime"
 
 	"github.com/0xJohnnyboy/polykeys/internal/adapters/config"
-	"github.com/0xJohnnyboy/polykeys/internal/adapters/devices"
-	"github.com/0xJohnnyboy/polykeys/internal/adapters/layouts"
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
 	"github.com/0xJohnnyboy/polykeys/internal/usecases"
 )
@@ -59,28 +56,10 @@ func NewApp() (*App, error) {
 
 // createDeviceDetector creates a platform-specific device detector
 func createDeviceDetector() (domain.DeviceDetector, error) {
-	switch runtime.GOOS {
-	case "linux":
-		return devices.NewLinuxDeviceDetector()
-	case "darwin":
-		return nil, fmt.Errorf("macOS device detector not yet implemented")
-	case "windows":
-		return nil, fmt.Errorf("Windows device detector not yet implemented")
-	default:
-		return nil, fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
+	return createPlatformDeviceDetector()
 }
 
 // createLayoutSwitcher creates a platform-specific layout switcher
 func createLayoutSwitcher() (domain.LayoutSwitcher, error) {
-	switch runtime.GOOS {
-	case "linux":
-		return layouts.NewLinuxLayoutSwitcher(), nil
-	case "darwin":
-		return nil, fmt.Errorf("macOS layout switcher not yet implemented")
-	case "windows":
-		return nil, fmt.Errorf("Windows layout switcher not yet implemented")
-	default:
-		return nil, fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
+	return createPlatformLayoutSwitcher()
 }
