@@ -5,6 +5,10 @@
 *.so
 *.dylib
 
+# Project binaries
+/polykeys
+/polykeysd
+
 # Test binary, built with `go test -c`
 *.test
 
