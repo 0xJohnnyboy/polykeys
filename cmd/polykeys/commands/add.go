@@ -115,8 +115,8 @@ func runAddDetect() error {
 		device.SetAlias(alias)
 	}
 
-	// Get available layouts
-	layouts, err := app.LayoutSwitcher.GetAvailableLayouts(ctx)
+	// Get available layouts from repository
+	layouts, err := app.LayoutRepo.FindAll(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get layouts: %w", err)
 	}

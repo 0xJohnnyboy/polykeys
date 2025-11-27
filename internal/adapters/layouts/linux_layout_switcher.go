@@ -78,54 +78,6 @@ func (s *LinuxLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.K
 	return nil
 }
 
-// GetCurrentLayout retrieves the currently active layout
-func (s *LinuxLayoutSwitcher) GetCurrentLayout(ctx context.Context) (*domain.KeyboardLayout, error) {
-	// Use setxkbmap -query to get current layout
-	cmd := exec.CommandContext(ctx, "setxkbmap", "-query")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to query current layout: %w", err)
-	}
-
-	// Parse output to find layout
-	lines := strings.Split(string(output), "\n")
-	var layoutCode string
-	var variant string
-
-	for _, line := range lines {
-		if strings.HasPrefix(line, "layout:") {
-			layoutCode = strings.TrimSpace(strings.TrimPrefix(line, "layout:"))
-		} else if strings.HasPrefix(line, "variant:") {
-			variant = strings.TrimSpace(strings.TrimPrefix(line, "variant:"))
-		}
-	}
-
-	if layoutCode == "" {
-		return nil, fmt.Errorf("could not determine current layout")
-	}
-
-	// Build layout name from code and variant
-	layoutName := s.getLayoutName(layoutCode, variant)
-	systemIdentifier := layoutCode
-	if variant != "" {
-		systemIdentifier = fmt.Sprintf("%s -variant %s", layoutCode, variant)
-	}
-
-	return domain.NewKeyboardLayout(layoutName, domain.OSLinux, systemIdentifier), nil
-}
-
-// GetAvailableLayouts returns all available layouts for Linux
-func (s *LinuxLayoutSwitcher) GetAvailableLayouts(ctx context.Context) ([]*domain.KeyboardLayout, error) {
-	layouts := make([]*domain.KeyboardLayout, 0, len(s.layoutMap))
-
-	for name, identifier := range s.layoutMap {
-		layout := domain.NewKeyboardLayout(name, domain.OSLinux, identifier)
-		layouts = append(layouts, layout)
-	}
-
-	return layouts, nil
-}
-
 // getSetxkbmapIdentifier returns the setxkbmap identifier for a layout
 func (s *LinuxLayoutSwitcher) getSetxkbmapIdentifier(layout *domain.KeyboardLayout) string {
 	// First try to use the system identifier directly
@@ -140,27 +92,6 @@ func (s *LinuxLayoutSwitcher) getSetxkbmapIdentifier(layout *domain.KeyboardLayo
 
 	// Fallback: assume the layout name is the identifier
 	return strings.ToLower(layout.Name)
-}
-
-// getLayoutName converts a setxkbmap layout code and variant to a friendly name
-func (s *LinuxLayoutSwitcher) getLayoutName(layoutCode, variant string) string {
-	// Try to find a matching name in the map
-	searchIdentifier := layoutCode
-	if variant != "" {
-		searchIdentifier = fmt.Sprintf("%s -variant %s", layoutCode, variant)
-	}
-
-	for name, identifier := range s.layoutMap {
-		if identifier == searchIdentifier {
-			return name
-		}
-	}
-
-	// Fallback: use layout code
-	if variant != "" {
-		return fmt.Sprintf("%s (%s)", layoutCode, variant)
-	}
-	return layoutCode
 }
 
 // AddLayoutMapping adds a custom layout mapping

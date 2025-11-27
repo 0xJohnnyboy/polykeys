@@ -20,10 +20,6 @@ type DeviceDetector interface {
 type LayoutSwitcher interface {
 	// SwitchLayout changes the system keyboard layout
 	SwitchLayout(ctx context.Context, layout *KeyboardLayout) error
-	// GetCurrentLayout retrieves the currently active layout
-	GetCurrentLayout(ctx context.Context) (*KeyboardLayout, error)
-	// GetAvailableLayouts returns all available layouts for the current OS
-	GetAvailableLayouts(ctx context.Context) ([]*KeyboardLayout, error)
 }
 
 // ConfigLoader defines the interface for loading configuration

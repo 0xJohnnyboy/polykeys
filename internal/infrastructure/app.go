@@ -13,6 +13,7 @@ type App struct {
 	ConfigLoader       domain.ConfigLoader
 	DeviceDetector     domain.DeviceDetector
 	LayoutSwitcher     domain.LayoutSwitcher
+	LayoutRepo         domain.LayoutRepository
 	SwitchLayoutUC     *usecases.SwitchLayoutUseCase
 	ManageMappingsUC   *usecases.ManageMappingsUseCase
 	MonitorDevicesUC   *usecases.MonitorDevicesUseCase
@@ -48,6 +49,7 @@ func NewApp() (*App, error) {
 		ConfigLoader:       configLoader,
 		DeviceDetector:     deviceDetector,
 		LayoutSwitcher:     layoutSwitcher,
+		LayoutRepo:         layoutRepo,
 		SwitchLayoutUC:     switchLayoutUC,
 		ManageMappingsUC:   manageMappingsUC,
 		MonitorDevicesUC:   monitorDevicesUC,

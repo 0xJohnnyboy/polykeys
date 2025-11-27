@@ -204,39 +204,6 @@ func (s *DarwinLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain.
 	}
 }
 
-// GetCurrentLayout retrieves the currently active layout
-func (s *DarwinLayoutSwitcher) GetCurrentLayout(ctx context.Context) (*domain.KeyboardLayout, error) {
-	cSourceID := C.getCurrentInputSourceID()
-	if cSourceID == nil {
-		return nil, fmt.Errorf("failed to get current input source")
-	}
-	defer C.free(unsafe.Pointer(cSourceID))
-
-	sourceID := C.GoString(cSourceID)
-
-	// Try to find matching layout
-	for name, mappedSourceID := range s.layoutMap {
-		if mappedSourceID == sourceID {
-			return domain.NewKeyboardLayout(name, domain.OSMacOS, sourceID), nil
-		}
-	}
-
-	// Return generic layout with source ID
-	return domain.NewKeyboardLayout(fmt.Sprintf("Layout-%s", sourceID), domain.OSMacOS, sourceID), nil
-}
-
-// GetAvailableLayouts returns all available layouts for macOS
-func (s *DarwinLayoutSwitcher) GetAvailableLayouts(ctx context.Context) ([]*domain.KeyboardLayout, error) {
-	layouts := make([]*domain.KeyboardLayout, 0, len(s.layoutMap))
-
-	for name, sourceID := range s.layoutMap {
-		layout := domain.NewKeyboardLayout(name, domain.OSMacOS, sourceID)
-		layouts = append(layouts, layout)
-	}
-
-	return layouts, nil
-}
-
 // getSourceID returns the macOS input source ID for a layout
 func (s *DarwinLayoutSwitcher) getSourceID(layout *domain.KeyboardLayout) string {
 	// Use the system identifier from the layout (set by the repository)

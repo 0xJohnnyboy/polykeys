@@ -166,47 +166,6 @@ func (s *WindowsLayoutSwitcher) broadcastLayoutChange(hkl windows.Handle) error 
 	return nil
 }
 
-// GetCurrentLayout retrieves the currently active layout
-func (s *WindowsLayoutSwitcher) GetCurrentLayout(ctx context.Context) (*domain.KeyboardLayout, error) {
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	procGetKeyboardLayout := user32.NewProc("GetKeyboardLayout")
-
-	// Get current thread ID (0 = current thread)
-	ret, _, _ := procGetKeyboardLayout.Call(0)
-
-	if ret == 0 {
-		return nil, fmt.Errorf("GetKeyboardLayout failed")
-	}
-
-	hkl := windows.Handle(ret)
-
-	// Extract KLID from HKL (lower 16 bits contain language ID)
-	langID := uint16(hkl & 0xFFFF)
-	klid := fmt.Sprintf("%08x", langID)
-
-	// Try to find matching layout
-	for name, mappedKLID := range s.layoutMap {
-		if mappedKLID == klid {
-			return domain.NewKeyboardLayout(name, domain.OSWindows, klid), nil
-		}
-	}
-
-	// Return generic layout with KLID
-	return domain.NewKeyboardLayout(fmt.Sprintf("Layout-%s", klid), domain.OSWindows, klid), nil
-}
-
-// GetAvailableLayouts returns all available layouts for Windows
-func (s *WindowsLayoutSwitcher) GetAvailableLayouts(ctx context.Context) ([]*domain.KeyboardLayout, error) {
-	layouts := make([]*domain.KeyboardLayout, 0, len(s.layoutMap))
-
-	for name, klid := range s.layoutMap {
-		layout := domain.NewKeyboardLayout(name, domain.OSWindows, klid)
-		layouts = append(layouts, layout)
-	}
-
-	return layouts, nil
-}
-
 // getKLID returns the Windows KLID for a layout
 func (s *WindowsLayoutSwitcher) getKLID(layout *domain.KeyboardLayout) string {
 	// First try to use the system identifier directly
