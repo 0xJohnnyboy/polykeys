@@ -221,36 +221,45 @@ func (d *DarwinDeviceDetector) scanDevices() error {
 
 // processUSBDevice recursively processes USB devices and their children
 func (d *DarwinDeviceDetector) processUSBDevice(usbDevice SPUSBDevice) {
-	// Check if this is a keyboard (by name)
-	isKeyboard := strings.Contains(strings.ToLower(usbDevice.Name), "keyboard") ||
-		strings.Contains(strings.ToLower(usbDevice.Name), "keeb")
-
-	// Debug: log all USB devices
+	// Process any USB device with VID and PID (don't filter by name)
+	// Custom keyboards like Corne, Lily58, etc. don't have "keyboard" in their name
 	if usbDevice.VendorID != "" && usbDevice.ProductID != "" {
-		fmt.Printf("[Detector] USB Device: %s (VID=%s, PID=%s, isKeyboard=%v)\n",
-			usbDevice.Name, usbDevice.VendorID, usbDevice.ProductID, isKeyboard)
-	}
-
-	if isKeyboard && usbDevice.VendorID != "" && usbDevice.ProductID != "" {
 		// Parse VID and PID (format: "0x046d" -> "046d")
 		vendorID := strings.TrimPrefix(strings.ToLower(usbDevice.VendorID), "0x")
 		productID := strings.TrimPrefix(strings.ToLower(usbDevice.ProductID), "0x")
 
 		deviceID := vendorID + ":" + productID
 
-		// Skip Apple internal keyboards (vendor ID 05ac is Apple)
-		if vendorID == "05ac" && strings.Contains(strings.ToLower(usbDevice.Name), "internal") {
-			fmt.Printf("[Detector] Skipping Apple internal keyboard: %s\n", usbDevice.Name)
-			return
+		fmt.Printf("[Detector] USB Device: %s (%s)\n", usbDevice.Name, deviceID)
+
+		// Skip some known non-keyboard devices
+		skipDevices := []string{
+			"hub",           // USB hubs
+			"camera",        // Cameras
+			"bluetooth",     // Bluetooth adapters
+			"card reader",   // Card readers
 		}
 
-		fmt.Printf("[Detector] Found keyboard: %s (%s)\n", usbDevice.Name, deviceID)
+		deviceNameLower := strings.ToLower(usbDevice.Name)
+		shouldSkip := false
+		for _, skip := range skipDevices {
+			if strings.Contains(deviceNameLower, skip) {
+				shouldSkip = true
+				break
+			}
+		}
 
-		device := domain.NewDevice(vendorID, productID, usbDevice.Name)
-		device.ID = deviceID
-		device.UpdateLastSeen()
+		if shouldSkip {
+			fmt.Printf("[Detector] Skipping non-keyboard device: %s\n", usbDevice.Name)
+		} else {
+			fmt.Printf("[Detector] Found potential keyboard: %s (%s)\n", usbDevice.Name, deviceID)
 
-		d.devices[deviceID] = device
+			device := domain.NewDevice(vendorID, productID, usbDevice.Name)
+			device.ID = deviceID
+			device.UpdateLastSeen()
+
+			d.devices[deviceID] = device
+		}
 	}
 
 	// Recursively process child items
