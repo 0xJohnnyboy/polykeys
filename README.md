@@ -160,6 +160,12 @@ make test
 make help
 ```
 
+## Troubleshooting
+
+Having issues? Check the [troubleshooting guide](TROUBLESHOOTING.md) for common error codes and solutions.
+
+All errors include a code (e.g., `PK_100`) to help identify and resolve issues quickly.
+
 ## License
 
 AGPL-3.0
