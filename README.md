@@ -59,6 +59,8 @@ mappings = {
 **Device ID format:** `VID:PID` (Vendor ID:Product ID in hex, lowercase)
 **Tip:** Use `polykeys add --detect` to automatically detect and add keyboards
 
+> ⚠️ **Important:** Keyboard layouts must be installed on your system before Polykeys can switch to them. On Windows, go to Settings → Time & Language → Language & Region → Add a keyboard. On macOS, go to System Settings → Keyboard → Input Sources. On Linux, layouts are typically pre-installed.
+
 ### Config file locations
 
 **Linux/macOS:**
@@ -80,6 +82,7 @@ mappings = {
 Start the daemon:
 ```bash
 polykeysd
+# use the --debug flag for more verbose output
 ```
 
 Add a new keyboard (interactive):
@@ -100,15 +103,15 @@ polykeys list
 
 ## Supported platforms
 
-- ✅ **Windows** - Fully functional (alpha)
-- ✅ **macOS** - Implemented (requires testing)
-- 🚧 **Linux** - In progress
+- ✅ **Windows** 
+- ✅ **macOS**
+- 🚧 **Linux** - requires further testing
 
 ### Platform implementation details
 
 **Windows:**
 - Device detection via WMI queries
-- Layout switching using Windows Keyboard Layout API
+- Layout switching using Windows Keyboard Layout API, preserving language
 - Polling-based detection (every 2 seconds)
 - Automatic switch to default layout on device disconnection
 

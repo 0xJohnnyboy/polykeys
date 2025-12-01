@@ -4,11 +4,12 @@ package layouts
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"unsafe"
 
 	"github.com/0xJohnnyboy/polykeys/internal/domain"
 	"github.com/0xJohnnyboy/polykeys/internal/errors"
+	"github.com/0xJohnnyboy/polykeys/internal/logger"
 	"golang.org/x/sys/windows"
 )
 
@@ -63,96 +64,105 @@ func (s *WindowsLayoutSwitcher) SwitchLayout(ctx context.Context, layout *domain
 	return nil
 }
 
-// loadKeyboardLayout loads a keyboard layout by KLID
-func (s *WindowsLayoutSwitcher) loadKeyboardLayout(klid string) (windows.Handle, error) {
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	procLoadKeyboardLayout := user32.NewProc("LoadKeyboardLayoutW")
-
-	klidUTF16, err := windows.UTF16PtrFromString(klid)
-	if err != nil {
-		return 0, errors.Wrap(errors.ErrCodeLayoutStringFailed, "failed to convert KLID to UTF16", err)
-	}
-
-	// KLF_ACTIVATE = 0x00000001
-	const KLF_ACTIVATE = 0x00000001
-
-	ret, _, err := procLoadKeyboardLayout.Call(
-		uintptr(unsafe.Pointer(klidUTF16)),
-		uintptr(KLF_ACTIVATE),
-	)
-
-	if ret == 0 {
-		return 0, errors.Wrap(errors.ErrCodeLayoutNotFound, "LoadKeyboardLayout failed", err)
-	}
-
-	return windows.Handle(ret), nil
-}
-
 // loadKeyboardLayoutPreservingLanguage loads a keyboard layout while preserving the current input language
 func (s *WindowsLayoutSwitcher) loadKeyboardLayoutPreservingLanguage(klid string) (windows.Handle, error) {
 	user32 := windows.NewLazySystemDLL("user32.dll")
 	procGetKeyboardLayout := user32.NewProc("GetKeyboardLayout")
 	procLoadKeyboardLayout := user32.NewProc("LoadKeyboardLayoutW")
+	procActivateKeyboardLayout := user32.NewProc("ActivateKeyboardLayout")
+	procGetKeyboardLayoutList := user32.NewProc("GetKeyboardLayoutList")
+	procGetKeyboardLayoutName := user32.NewProc("GetKeyboardLayoutNameW")
+
+	const (
+		KLF_ACTIVATE  = 0x00000001 // Activate keyboard layout
+		KL_NAMELENGTH = 9          // Keyboard layout name length (8 chars + null terminator)
+	)
 
 	// Get current HKL to extract current language
 	currentHKL, _, _ := procGetKeyboardLayout.Call(0)
 
-	// Extract current language ID (upper 16 bits of HKL)
-	currentLangID := uint16((currentHKL >> 16) & 0xFFFF)
+	// Extract current language ID (lower 16 bits of HKL)
+	currentLangID := uint16(currentHKL & 0xFFFF)
 
-	// Parse the layout ID from KLID
-	// KLID format: "00020409" where the last 4 chars (0409) are the layout ID
-	if len(klid) < 4 {
-		return 0, errors.New(errors.ErrCodeLayoutInvalidIdentifier, "KLID too short")
-	}
-
-	// Extract layout ID from KLID (last 4 hex chars)
-	layoutIDStr := klid[len(klid)-4:]
-
-	// First try: construct HKL with current language + new layout and try to activate directly
-	var layoutID uint64
-	_, err := fmt.Sscanf(layoutIDStr, "%04x", &layoutID)
-	if err != nil {
-		return 0, errors.Wrap(errors.ErrCodeLayoutInvalidIdentifier, "failed to parse layout ID from KLID", err)
-	}
-
-	// Construct HKL: (currentLangID << 16) | layoutID
-	preservedHKL := (uintptr(currentLangID) << 16) | uintptr(layoutID)
-
-	// Try to activate this HKL directly (in case it's already loaded)
-	procActivateKeyboardLayout := user32.NewProc("ActivateKeyboardLayout")
-	ret, _, _ := procActivateKeyboardLayout.Call(preservedHKL, uintptr(0x00000001)) // KLF_ACTIVATE
-
-	if ret != 0 {
-		// Success! The layout was already loaded with our current language
-		return windows.Handle(preservedHKL), nil
-	}
-
-	// If direct activation failed, load the layout with original KLID
-	// This ensures the layout is installed, even if with a different language
+	// Load the target layout to get its device ID
 	klidUTF16, err := windows.UTF16PtrFromString(klid)
 	if err != nil {
 		return 0, errors.Wrap(errors.ErrCodeLayoutStringFailed, "failed to convert KLID to UTF16", err)
 	}
-
-	const KLF_ACTIVATE = 0x00000001
-	ret, _, err = procLoadKeyboardLayout.Call(
+	loadedHKL, _, err := procLoadKeyboardLayout.Call(
 		uintptr(unsafe.Pointer(klidUTF16)),
 		uintptr(KLF_ACTIVATE),
 	)
 
-	if ret == 0 {
+	if loadedHKL == 0 {
 		return 0, errors.Wrap(errors.ErrCodeLayoutNotFound, "LoadKeyboardLayout failed", err)
 	}
 
-	// Now that the layout is loaded, try again to activate it with our current language
-	ret2, _, _ := procActivateKeyboardLayout.Call(preservedHKL, uintptr(KLF_ACTIVATE))
-	if ret2 != 0 {
-		return windows.Handle(preservedHKL), nil
+	// Extract the device identifier from the loaded HKL (upper 16 bits)
+	targetDeviceID := uint16((loadedHKL >> 16) & 0xFFFF)
+
+	if logger.IsDebug() {
+		logger.Debug("[Switcher] Current HKL: 0x%08x, Current LangID: 0x%04x, Target KLID: %s\n",
+			currentHKL, currentLangID, klid)
+		logger.Debug("[Switcher] Loaded HKL: 0x%08x, Target DeviceID: 0x%04x\n",
+			loadedHKL, targetDeviceID)
 	}
 
-	// Fallback: return the HKL from LoadKeyboardLayout (may change language)
-	return windows.Handle(ret), nil
+	// Get list of all installed keyboard layouts
+	numLayouts, _, _ := procGetKeyboardLayoutList.Call(0, 0)
+	if numLayouts == 0 {
+		if logger.IsDebug() {
+			logger.Debug("[Switcher] No layouts found in list, using loaded HKL\n")
+		}
+		return windows.Handle(loadedHKL), nil
+	}
+
+	// Allocate buffer for HKL list
+	hklList := make([]uintptr, numLayouts)
+	procGetKeyboardLayoutList.Call(numLayouts, uintptr(unsafe.Pointer(&hklList[0])))
+
+	// Search for a layout with matching device ID and current language
+	for _, hkl := range hklList {
+		deviceID := uint16((hkl >> 16) & 0xFFFF)
+		langID := uint16(hkl & 0xFFFF)
+
+		if deviceID == targetDeviceID && langID == currentLangID {
+			// Found a candidate with matching DeviceID and LangID
+			// Now verify the actual KLID matches what we want
+
+			// Activate this HKL temporarily to get its name
+			ret, _, _ := procActivateKeyboardLayout.Call(hkl, uintptr(KLF_ACTIVATE))
+			if ret == 0 {
+				continue // Activation failed, try next candidate
+			}
+
+			// Get the actual KLID of this layout
+			var actualKLID [KL_NAMELENGTH]uint16
+			procGetKeyboardLayoutName.Call(uintptr(unsafe.Pointer(&actualKLID[0])))
+			actualKLIDStr := windows.UTF16ToString(actualKLID[:])
+
+			if logger.IsDebug() {
+				logger.Debug("[Switcher] Checking candidate: HKL 0x%08x (DeviceID: 0x%04x, LangID: 0x%04x), actual KLID: %s\n",
+					hkl, deviceID, langID, actualKLIDStr)
+			}
+
+			// Check if the actual KLID matches our target
+			if strings.EqualFold(actualKLIDStr, klid) {
+				// Perfect match: same layout variant, current language!
+				if logger.IsDebug() {
+					logger.Debug("[Switcher] ✓ Found exact matching layout with preserved language\n")
+				}
+				return windows.Handle(hkl), nil
+			}
+		}
+	}
+
+	// Fallback: no exact match found with current language and KLID
+	// This might happen if the layout with current language isn't installed
+	if logger.IsDebug() {
+		logger.Debug("[Switcher] ⚠ No exact matching layout variant with current language found, using loaded HKL\n")
+	}
+	return windows.Handle(loadedHKL), nil
 }
 
 // activateKeyboardLayout activates a loaded keyboard layout
